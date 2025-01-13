@@ -1,42 +1,42 @@
-# VM Dengan Cloud Init installer script simple
+# VM dengan Cloud Init Installer Script
 
-**CLOUD INIT INSTALLER** adalah sebuah script installer yang memungkinkan Anda untuk dengan mudah mengonfigurasi dan menginstal berbagai OS pada Proxmox Virtual Environment (PVE) dengan sistem **CLOUD INIT**. Jika ISO yang diinginkan tidak tersedia di direktori `/var/lib/vz/images/`, script ini akan otomatis mengunduhnya untuk Anda.
+**OpsLinuxSec CLOUD INIT INSTALLER** adalah script installer yang memungkinkan Anda untuk dengan mudah mengonfigurasi dan menginstal berbagai OS pada Proxmox Virtual Environment (PVE) menggunakan **CLOUD INIT**. Jika ISO yang diinginkan tidak tersedia di direktori `/var/lib/vz/images/`, script ini akan otomatis mengunduhnya untuk Anda.
 
 ## Prasyarat
 
 Pastikan sistem Anda sudah memiliki dependensi berikut:
 - **wget**: untuk mengunduh ISO
 - **Proxmox VE**: untuk menjalankan VM
-- **Root**: tools ini membutuh akses root
+- **Root**: tools ini membutuhkan akses root
 
 ### Memeriksa dan Menginstal Dependencies
-script ini akan memeriksa apakah dependencies yang diperlukan sudah terinstal. Jika belum, maka dependencies akan diinstal otomatis.
+
+Script ini akan memeriksa apakah dependensi yang diperlukan sudah terinstal. Jika belum, maka dependensi akan diinstal secara otomatis.
 
 ## Langkah Penggunaan
 
-1. **Unduh dan Persiapkan script**
+1. **Unduh dan Persiapkan Script**
    
-   Clone repository dan pastikan file ini dapat dieksekusi:
+   Unduh script dan pastikan file ini dapat dieksekusi:
    ```bash
-   https://github.com/ryanachmad12/cloud-init-prox-script
-   cd cloud-init-prox-script
+   wget https://github.com/ryanachmad12/cloud-init-prox-script/raw/refs/heads/main/installer.sh
    chmod +x installer.sh
    ```
 
-2. **Jalankan script Installer**
+2. **Jalankan Script Installer**
    
-   Jalankan script dengan perintah:
+   Jalankan script dengan perintah berikut:
    ```bash
    bash installer.sh
    ```
 
-### Proses Installasi
+### Proses Instalasi
 
-Saat menjalankan script, berikut adalah proses yang akan dijalani:
+Saat menjalankan script, berikut adalah langkah-langkah yang akan diikuti:
 
 1. **Memeriksa Dependencies**
    
-   script akan memeriksa apakah dependencies yang diperlukan sudah terinstal.
+   Script akan memeriksa apakah dependensi yang diperlukan sudah terinstal.
 
    ```bash
    Memeriksa dependencies...
@@ -45,18 +45,18 @@ Saat menjalankan script, berikut adalah proses yang akan dijalani:
 
 2. **Pilih OS yang Tersedia**
 
-   Setelah dependencies diperiksa, Anda akan melihat menu utama:
+   Setelah memeriksa dependensi, Anda akan melihat menu utama:
 
    ```
-   =======================================
-           INSTALLER CLOUDINIT
-   =======================================
-   Silahkan dipilih untuk penginstalan
-   =======================================
-           INSTALLER CLOUDINIT
-   =======================================
+   =============================
+           OpsLinuxSec
+   =============================
+   Silakan dipilih untuk penginstalan
+   =============================
+           OpsLinuxSec
+   =============================
    1. Pilih OS Yang Tersedia
-   2. Custom OS (Image Sendiri berupa link)
+   2. Custom OS (Image Sendiri melalui link)
    3. Exit
    Pilihan Anda: 
    ```
@@ -70,9 +70,9 @@ Saat menjalankan script, berikut adalah proses yang akan dijalani:
    Setelah memilih "Pilih OS Yang Tersedia", Anda akan diminta untuk memilih distro:
 
    ```
-   =====================================
-           INSTALLER CLOUDINIT
-   =====================================
+   =============================
+           OpsLinuxSec
+   =============================
    Pilih Distro:
    1. Ubuntu
    2. Debian
@@ -84,13 +84,13 @@ Saat menjalankan script, berikut adalah proses yang akan dijalani:
 
 4. **Pilih Versi Ubuntu**
 
-   Setelah memilih distro Ubuntu, pilih versi yang diinginkan:
+   Setelah memilih Ubuntu, pilih versi yang diinginkan:
 
    ```
-   ==============================
+   ===========================
            PILIH VERSI
              UBUNTU
-   ==============================
+   ===========================
    1. 20.04
    2. 22.04
    3. 24.04
@@ -102,15 +102,15 @@ Saat menjalankan script, berikut adalah proses yang akan dijalani:
 
 5. **Periksa Ketersediaan Image**
 
-   Jika file ISO tidak ditemukan atau berbeda nama di direktori `/var/lib/vz/images/`, script akan menampilkan pesan berikut dan menanyakan apakah Anda ingin mengunduhnya:
+   Jika file ISO tidak ditemukan atau memiliki nama yang berbeda di direktori `/var/lib/vz/images/`, script akan menampilkan pesan ini dan menanyakan apakah Anda ingin mengunduhnya:
 
    ```
    File tidak ditemukan di /var/lib/vz/images/focal-server-cloudimg-amd64.img.
-   Silakan unduh ISO untuk versi Ubuntu 20.04 dan ganti nama file menjadi focal-server-cloudimg-amd64.img
+   Silakan unduh ISO untuk Ubuntu 20.04 dan ganti nama file menjadi focal-server-cloudimg-amd64.img.
    Apakah Anda ingin mengunduhnya? (yes/no):
    ```
 
-   - Pilih **yes** untuk mengunduh ISO atau **no** untuk mengubah nama manual.
+   - Pilih **yes** untuk mengunduh ISO atau **no** untuk mengganti nama file secara manual.
 
 6. **Resize Disk dan Pengaturan VM**
 
@@ -122,7 +122,7 @@ Saat menjalankan script, berikut adalah proses yang akan dijalani:
    Ukuran disk berhasil diubah menjadi 6G.
    ```
 
-   Kemudian, jika VM sudah ada, Anda akan diminta untuk memasukkan ID VM yang berbeda.
+   Jika VM sudah ada, Anda akan diminta untuk memasukkan ID VM yang berbeda.
 
    ```
    Masukkan VM ID: 123
@@ -174,13 +174,4 @@ Setelah VM selesai dibuat, Anda bisa menjadikannya template untuk kloning di mas
 
 ---
 
-**SCRIPT INI** memudahkan proses instalasi dan konfigurasi sistem operasi di Proxmox. Dengan pengunduhan otomatis dan pengaturan VM, Anda bisa menghemat waktu dalam manajemen virtualisasi.
-
-
-### Penjelasan:
-1. **Instruksi Umum**: Descriptsi cara penggunaan dan langkah-langkah menjalankan script.
-2. **Proses Instalasi dan Pengaturan**: Detil langkah yang akan diambil oleh script, termasuk pemilihan OS, pengunduhan ISO, resizing disk, dan pembuatan VM.
-3. **Dependencies**: script akan memastikan dependensi yang diperlukan terinstal sebelum melanjutkan.
-4. **Pilih Distro dan Versi**: Menyediakan pilihan untuk memilih distro (Ubuntu/Debian) dan versi OS yang akan digunakan.
-5. **Pengunduhan ISO**: Mengunduh ISO otomatis jika file belum ada di sistem.
-6. **Pembuatan dan Konfigurasi VM**: Menentukan konfigurasi VM, termasuk disk, ID VM, memori, dan core.
+**OpsLinuxSec** memudahkan proses instalasi dan konfigurasi sistem operasi di Proxmox. Dengan pengunduhan otomatis dan pengaturan VM, Anda bisa menghemat waktu dalam manajemen virtualisasi.
