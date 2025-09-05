@@ -1,5 +1,16 @@
 #!/bin/bash
 
+
+# Color
+RED="\e[31m"
+GREEN="\e[32m"
+YELLOW="\e[33m"
+BLUE="\e[34m"
+CYAN="\e[36m"
+RESET="\e[0m"
+
+clear
+
 # Check root access
 if [ "$EUID" -ne 0 ]; then
   echo "Use root access!"
@@ -7,75 +18,92 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Check dependencies
-CHECK_DEPENDENCIES() {
-  echo "Checking dependencies..."
-  if ! dpkg -l | grep -qw "libguestfs-tools"; then
-    echo "Dependency not found."
-    echo "Installing dependencies..."
-    apt install -y libguestfs-tools
+#CHECK_DEPENDENCIES() {
+#  echo "Checking dependencies..."
+#  if ! dpkg -l | grep -qw "libguestfs-tools"; then
+#    echo "Dependency not found."
+#    echo "Installing dependencies..."
+#    apt install -y libguestfs-tools
 
-    if [ $? -eq 0 ]; then
-      echo "Dependencies successfully installed."
-    else
-      echo "Failed to install dependencies. Please check your network connection."
-      exit 1
-    fi
-  else
-    echo "Dependencies are already installed."
-  fi
-}
+#    if [ $? -eq 0 ]; then
+#      echo "Dependencies successfully installed."
+#    else
+#      echo "Failed to install dependencies. Please check your network connection."
+#      exit 1
+#    fi
+#  else
+#    echo "Dependencies are already installed."
+#  fi
+#}
 
 # Recheck dependencies
-CHECK_DEPENDENCIES
+#CHECK_DEPENDENCIES
 sleep 1
 clear
 
-# Main Menu
-echo "====================="
-echo "     OpsLinuxSec     "
-echo "====================="
-echo "Please select for installation"
-echo "====================="
-echo "     OpsLinuxSec     "
-echo "====================="
-echo "1. Choose Available OS"
-echo "2. Custom OS (Your Own Image)"
-echo "3. Exit"
-read -e -p "Your choice: " CHOICE
+# ACSII Banner
+echo -e "${CYAN}"
+echo "#######               #                               #####                "
+echo "#     # #####   ####  #       # #    # #    # #    # #     # ######  ####  "
+echo "#     # #    # #      #       # ##   # #    #  #  #  #       #      #    # "
+echo "#     # #    #  ####  #       # # #  # #    #   ##    #####  #####  #      "
+echo "#     # #####       # #       # #  # # #    #   ##         # #      #      "
+echo "#     # #      #    # #       # #   ## #    #  #  #  #     # #      #    # "
+echo "####### #       ####  ####### # #    #  ####  #    #  #####  ######  ####  "
+echo -e "${RESET}"
 
+
+# Menu
+echo -e "${YELLOW}=====================================${RESET}"
+echo -e "${GREEN}        Cloud-Init Installer        ${RESET}"
+echo -e "${YELLOW}=====================================${RESET}"
+echo -e "${BLUE}Please select for installation${RESET}"
+echo -e "${YELLOW}=====================================${RESET}"
+echo -e "${CYAN}1.${RESET} Choose Available OS"
+echo -e "${CYAN}2.${RESET} Custom OS (Your Own Image)"
+echo -e "${CYAN}3.${RESET} Exit"
+echo -e "${YELLOW}=====================================${RESET}"
+
+read -e -p "Your choice: " CHOICE                                        
 case $CHOICE in
   1)
     clear
-    echo "====================="
-    echo "     OpsLinuxSec     "
-    echo "====================="
-    echo "Select Distro:"
-    echo "1. Ubuntu"
-    echo "2. Debian"
-    echo "3. Exit"
+    # Menu Distro
+    echo -e "${YELLOW}╔════════════════════╗${RESET}"
+    echo -e "${YELLOW}║${RESET}    ${CYAN}OpsLinuxSec${RESET}     ${YELLOW}║${RESET}"
+    echo -e "${YELLOW}╚════════════════════╝${RESET}"
+    echo -e "${GREEN}Select Distro:${RESET}"
+    echo -e "${BLUE}1.${RESET} Ubuntu"
+    echo -e "${BLUE}2.${RESET} Debian"
+    echo -e "${BLUE}3.${RESET} Exit"
+    echo -e "${YELLOW}──────────────────────${RESET}"
+
     read -e -p "Your choice: " DISTRO
     case $DISTRO in
       1)
         clear
-        echo "=========================="
-        echo "    CHOOSE VERSION   "
-        echo "      UBUNTU         "
-        echo "=========================="
-        echo "1. 20.04 "
-        echo "2. 22.04 "
-        echo "3. 24.04 "
-        echo "4. Exit  "
-        read -e -p "Your choice:" CHOICE_DISTRO 
-        case $CHOICE_DISTRO in
+	echo -e "${YELLOW}╔══════════════════════════════════════╗${RESET}"
+	echo -e "${YELLOW}║        CHOOSE UBUNTU VERSION         ║${RESET}"
+	echo -e "${YELLOW}╠════╦═══════════╦═════════════════════╣${RESET}"
+	echo -e "${YELLOW}║ No ║ Version   ║ Codename            ║${RESET}"
+	echo -e "${YELLOW}╠════╬═══════════╬═════════════════════╣${RESET}"
+	echo -e "${YELLOW}║ 1  ║ 20.04 LTS ║ Focal Fossa         ║${RESET}"
+	echo -e "${YELLOW}║ 2  ║ 22.04 LTS ║ Jammy Jellyfish     ║${RESET}"
+	echo -e "${YELLOW}║ 3  ║ 24.04 LTS ║ Noble Numbat        ║${RESET}"
+	echo -e "${YELLOW}║ 4  ║ Exit      ║ Exit Interrupt      ║${RESET}"
+	echo -e "${YELLOW}╚════╩═══════════╩═════════════════════╝${RESET}"
+
+	read -e -p "Your choice: " CHOICE_DISTRO 
+       case $CHOICE_DISTRO in
           1)
             FINAL_CHOICE="/var/lib/vz/images/focal-server-cloudimg-amd64.img"
             if [ ! -f "$FINAL_CHOICE" ]; then
-              echo "File not found at $FINAL_CHOICE."
-              echo "Please download the Ubuntu 20.04 ISO and rename the file to 'focal-server-cloudimg-amd64.img'"
+              echo -e "${RED}File not found at $FINAL_CHOICE.${RESET}"
+              echo -e "${GREEN}Please download the Ubuntu 20.04 ISO and rename the file to 'focal-server-cloudimg-amd64.img'${RESET}"
               read -e -p "Do you want to download it? (yes/no): " DOWNLOAD_CHOICE
               case $DOWNLOAD_CHOICE in
                 yes|y)
-                  echo "Downloading Ubuntu 20.04 ISO..."
+                  echo -e "${YELLOW}Downloading Ubuntu 20.04 ISO...${RESET}"
                   wget -O $FINAL_CHOICE "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"
                   echo "File downloaded and saved to $FINAL_CHOICE."
                   ;;
@@ -95,8 +123,8 @@ case $CHOICE in
           2)
             FINAL_CHOICE="/var/lib/vz/images/jammy-server-cloudimg-amd64.img"
             if [ ! -f "$FINAL_CHOICE" ]; then
-              echo "File not found at $FINAL_CHOICE."
-              echo "Please download the Ubuntu 22.04 ISO and rename the file to 'jammy-server-cloudimg-amd64.img'"
+              echo -e "${RED}File not found at $FINAL_CHOICE.${RESET}"
+              echo -e "${GREEN}Please download the Ubuntu 22.04 ISO and rename the file to 'jammy-server-cloudimg-amd64.img'${RESET}"
               read -e -p "Do you want to download it? (yes/no): " DOWNLOAD_CHOICE
               case $DOWNLOAD_CHOICE in
                 yes|y)
@@ -120,8 +148,8 @@ case $CHOICE in
           3)
             FINAL_CHOICE="/var/lib/vz/images/noble-server-cloudimg-amd64.img"
             if [ ! -f "$FINAL_CHOICE" ]; then
-              echo "File not found at $FINAL_CHOICE."
-              echo "Please download the Ubuntu 24.04 ISO and rename the file to 'noble-server-cloudimg-amd64.img'"
+              echo -e "${RED}File not found at $FINAL_CHOICE.${RESET}"
+              echo -e "${GREEN}Please download the Ubuntu 24.04 ISO and rename the file to 'noble-server-cloudimg-amd64.img'${RESET}"
               read -e -p "Do you want to download it? (yes/no): " DOWNLOAD_CHOICE
               case $DOWNLOAD_CHOICE in
                 yes|y)
@@ -154,21 +182,25 @@ case $CHOICE in
       ;;
       2)
         clear
-        echo "=========================="
-        echo "    CHOOSE VERSION   "
-        echo "      Debian         "
-        echo "=========================="
-        echo "1. Buster "
-        echo "2. Bullseye "
-        echo "3. Bookworm "
-        echo "4. Exit  "
-        read -e -p "Your choice:" CHOICE_DISTRO 
+	echo -e "${YELLOW}╔══════════════════════════════════════╗${RESET}"
+	echo -e "${YELLOW}║         CHOOSE DEBIAN VERSION        ║${RESET}"
+	echo -e "${YELLOW}╠════╦═══════════╦═════════════════════╣${RESET}"
+	echo -e "${YELLOW}║ No ║ Version   ║ Codename            ║${RESET}"
+	echo -e "${YELLOW}╠════╬═══════════╬═════════════════════╣${RESET}"
+	echo -e "${YELLOW}║ 1  ║ 10        ║ Buster              ║${RESET}"
+	echo -e "${YELLOW}║ 2  ║ 11        ║ Bullseye            ║${RESET}"
+	echo -e "${YELLOW}║ 3  ║ 12        ║ Bookworm            ║${RESET}"
+	echo -e "${YELLOW}║ 4  ║ 13        ║ Trixie              ║${RESET}"
+	echo -e "${YELLOW}║ 5  ║ Exit      ║ Exit Interrupt      ║${RESET}"
+	echo -e "${YELLOW}╚════╩═══════════╩═════════════════════╝${RESET}"
+
+	read -e -p "Your choice: " CHOICE_DISTRO
         case $CHOICE_DISTRO in
           1)
             FINAL_CHOICE="/var/lib/vz/images/debian-10-generic-amd64.qcow2"
             if [ ! -f "$FINAL_CHOICE" ]; then
-              echo "File not found at $FINAL_CHOICE."
-              echo "Please download the Debian 10 (Buster) ISO and rename the file to 'debian-10-generic-amd64.qcow2'"
+              echo -e "${RED}File not found at $FINAL_CHOICE.${RESET}"
+              echo -e "${GREEN}Please download the Debian 10 (Buster) ISO and rename the file to 'debian-10-generic-amd64.qcow2'${RESET}"
               read -e -p "Do you want to download it? (yes/no): " DOWNLOAD_CHOICE
               case $DOWNLOAD_CHOICE in
                 yes|y)  
@@ -192,8 +224,8 @@ case $CHOICE in
           2)
             FINAL_CHOICE="/var/lib/vz/images/debian-11-generic-amd64.qcow2"
             if [ ! -f "$FINAL_CHOICE" ]; then
-              echo "File not found at $FINAL_CHOICE."
-              echo "Please download the Debian 11 (Bullseye) ISO and rename the file to 'debian-11-generic-amd64.qcow2'"
+              echo -e "${RED}File not found at $FINAL_CHOICE.${RESET}"
+              echo -e "${GREEN}Please download the Debian 11 (Bullseye) ISO and rename the file to 'debian-11-generic-amd64.qcow2'${RESET}"
               read -e -p "Do you want to download it? (yes/no): " DOWNLOAD_CHOICE
               case $DOWNLOAD_CHOICE in
                 yes|y)
@@ -217,8 +249,8 @@ case $CHOICE in
           3)
             FINAL_CHOICE="/var/lib/vz/images/debian-12-generic-amd64.qcow2"
             if [ ! -f "$FINAL_CHOICE" ]; then
-              echo "File not found at $FINAL_CHOICE."
-              echo "Please download the Debian 12 (Bookworm) ISO and rename the file to 'debian-12-generic-amd64.qcow2'"
+              echo -e "${RED}File not found at $FINAL_CHOICE.${RESET}"
+              echo -e "${GREEN}Please download the Debian 12 (Bookworm) ISO and rename the file to 'debian-12-generic-amd64.qcow2'"
               read -e -p "Do you want to download it? (yes/no): " DOWNLOAD_CHOICE
               case $DOWNLOAD_CHOICE in
                 yes|y)
@@ -238,8 +270,33 @@ case $CHOICE in
             else
               echo "File found: $FINAL_CHOICE"
             fi 
-          ;;  
+          ;;
           4)
+            FINAL_CHOICE="/var/lib/vz/images/debian-13-generic-amd64.qcow2"
+            if [ ! -f "$FINAL_CHOICE" ]; then
+              echo -e "${RED}File not found at $FINAL_CHOICE.${RESET}"
+              echo -e "${GREEN}Please download the Debian 13 (Trixie) ISO and rename the file to 'debian-13-generic-amd64.qcow2'${RESET}"
+              read -e -p "Do you want to download it? (yes/no): " DOWNLOAD_CHOICE
+              case $DOWNLOAD_CHOICE in
+                yes|y)
+                  echo "Downloading Debian 13 (Trixie) ISO..."
+                  wget -O $FINAL_CHOICE "https://cdimage.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2"
+                  echo "File downloaded and saved to $FINAL_CHOICE."
+                  ;;
+                no|n)
+                  echo "Please input the correct ISO file and directory, then rename it to $FINAL_CHOICE."
+                  exit 1
+                  ;;
+                *)
+                  echo "Invalid choice, exiting."
+                  exit 1
+                  ;;
+              esac
+            else
+              echo "File found: $FINAL_CHOICE"
+            fi
+          ;;
+          5)
             echo "Exiting..."
             exit 1
             ;;
@@ -306,19 +363,20 @@ esac
 # Resize disk for the chosen OS
 read -e -p "Enter the desired disk size (GB): " DISK_SIZE
 
-qemu-img resize "$FINAL_CHOICE" "${DISK_SIZE}G"
+qemu-img resize --shrink "$FINAL_CHOICE" "${DISK_SIZE}G"
 # Check if command was successful
 if [ $? -ne 0 ]; then
-  echo "Failed to resize disk. Please check your storage capacity."
+  echo -e "${RED}Failed to resize disk. Please check log error at bottom.${RESET}"
+  echo -e "${RED}And Run again after know the error what need you do${RESET}"
   exit 1
 else
-  echo "Disk size successfully resized to ${DISK_SIZE}G."
+  echo -e "${GREEN}Disk size successfully resized to ${DISK_SIZE}G.${RESET}"
 fi
 
 # Check if VMID is already used
 CHECK_VM_IF_EXISTS() {
   if qm list | grep -w "$VMID" > /dev/null; then
-    echo "VM with ID $VMID already exists. Please use a different VMID."
+    echo -e "${RED}VM with ID $VMID already exists. Please use a different VMID.${RESET}"
     return 1
   else
     return 0
@@ -347,7 +405,7 @@ qm create "$VMID" --name "$NAME" \
   --vga serial0 --serial0 socket \
   --net0 virtio,bridge=vmbr0
 
-echo "VM $VMID successfully created with name $NAME."
+echo -e "${GREEN}VM $VMID successfully created with name $NAME.${RESET}"
 
 
 # Get hostname
@@ -367,6 +425,6 @@ read -e -p "Enter target storage (e.g., lvm-harddisk): " DISK
 
 
 # Final sessions
-echo "Please set this VM as a template for continuous cloning."
-echo "VM with ID $VMID successfully created and configured."
-echo "Please configure the network in the VM settings as needed."
+echo -e "${CYAN}Please set this VM as a template for continuous cloning.${RESET}"
+echo -e "${CYAN}VM with ID $VMID successfully created and configured.${RESET}"
+echo -e "${YELLOW}Please configure the network in the VM settings as needed.${RESET}"
