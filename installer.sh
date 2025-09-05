@@ -18,26 +18,26 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Check dependencies
-#CHECK_DEPENDENCIES() {
-#  echo "Checking dependencies..."
-#  if ! dpkg -l | grep -qw "libguestfs-tools"; then
-#    echo "Dependency not found."
-#    echo "Installing dependencies..."
-#    apt install -y libguestfs-tools
+CHECK_DEPENDENCIES() {
+  echo "Checking dependencies..."
+  if ! dpkg -l | grep -qw "libguestfs-tools"; then
+    echo "Dependency not found."
+    echo "Installing dependencies..."
+    apt install -y libguestfs-tools
 
-#    if [ $? -eq 0 ]; then
-#      echo "Dependencies successfully installed."
-#    else
-#      echo "Failed to install dependencies. Please check your network connection."
-#      exit 1
-#    fi
-#  else
-#    echo "Dependencies are already installed."
-#  fi
-#}
+    if [ $? -eq 0 ]; then
+      echo "Dependencies successfully installed."
+    else
+      echo "Failed to install dependencies. Please check your network connection."
+      exit 1
+    fi
+  else
+    echo "Dependencies are already installed."
+  fi
+}
 
 # Recheck dependencies
-#CHECK_DEPENDENCIES
+CHECK_DEPENDENCIES
 sleep 1
 clear
 
