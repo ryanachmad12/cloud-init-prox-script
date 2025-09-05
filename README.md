@@ -2,7 +2,7 @@
 
 **OpsLinuxSec CLOUD INIT INSTALLER** adalah script installer yang memungkinkan Anda untuk dengan mudah mengonfigurasi dan menginstal berbagai OS pada Proxmox Virtual Environment (PVE) menggunakan **CLOUD INIT**. Jika ISO yang diinginkan tidak tersedia di direktori `/var/lib/vz/images/`, script ini akan otomatis mengunduhnya untuk Anda.
 
-> [!NOTE](Update)
+> [!NOTE]Update
 > Added Debian **Trixie** choice to distro menu.
 
 ## Prasyarat
