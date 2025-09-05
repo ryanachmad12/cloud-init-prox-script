@@ -8,6 +8,11 @@ Pastikan sistem Anda sudah memiliki dependensi berikut:
 - **wget**: untuk mengunduh ISO
 - **Proxmox VE**: untuk menjalankan VM
 - **Root**: tools ini membutuhkan akses root
+---
+## 📰 News Update
+- Added Debian *Trixie* choice to distro menu
+- Improved table styling
+---
 
 ### Memeriksa dan Menginstal Dependencies
 
