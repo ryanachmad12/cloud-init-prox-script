@@ -10,13 +10,13 @@ RESET="\e[0m"
 
 clear
 
-# Check root access
+ # Check root access
 if [ "$EUID" -ne 0 ]; then
   echo "Use root access!"
   exit
 fi
 
-# Check dependencies
+ # Check dependencies
 CHECK_DEPENDENCIES() {
   echo "Checking dependencies..."
   if ! dpkg -l | grep -qw "libguestfs-tools"; then
