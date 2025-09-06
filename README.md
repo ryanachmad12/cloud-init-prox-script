@@ -4,6 +4,7 @@
 
 > [!NOTE]
 > Added Debian **Trixie** choice to distro menu.
+> Update Terminal Styling
 
 ## Prasyarat
 
