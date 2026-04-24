@@ -74,7 +74,8 @@ case $CHOICE in
     echo -e "${GREEN}Select Distro:${RESET}"
     echo -e "${BLUE}1.${RESET} Ubuntu"
     echo -e "${BLUE}2.${RESET} Debian"
-    echo -e "${BLUE}3.${RESET} Exit"
+    echo -e "${BLUE}3.${RESET} Arch"
+    echo -e "${BLUE}4.${RESET} Exit"
     echo -e "${YELLOW}──────────────────────${RESET}"
 
     read -e -p "Your choice: " DISTRO
@@ -306,6 +307,55 @@ case $CHOICE in
         esac
         ;;
       3)
+        clear
+        echo -e "${YELLOW}╔══════════════════════════════════════╗${RESET}"
+        echo -e "${YELLOW}║         CHOOSE ARCH VERSION          ║${RESET}"
+        echo -e "${YELLOW}╠════╦═══════════╦═════════════════════╣${RESET}"
+        echo -e "${YELLOW}║ No ║ Version   ║ Codename            ║${RESET}"
+        echo -e "${YELLOW}╠════╬═══════════╬═════════════════════╣${RESET}"
+        echo -e "${YELLOW}║ 1  ║ Latest    ║ -                   ║${RESET}"
+        echo -e "${YELLOW}║ 2  ║ Exit      ║ Exit Interrupt      ║${RESET}"
+        echo -e "${YELLOW}╚════╩═══════════╩═════════════════════╝${RESET}"
+
+        read -e -p "Your choice: " CHOICE_DISTRO
+        case $CHOICE_DISTRO in
+          1)
+            FINAL_CHOICE="/var/lib/vz/images/Arch-Linux-x86_64-cloudimg.qcow2"
+            if [ ! -f "$FINAL_CHOICE" ]; then
+              echo -e "${RED}File not found at $FINAL_CHOICE.${RESET}"
+              echo -e "${GREEN}Please download the ARCH ISO and rename the file to 'Arch-Linux-x86_64-cloudimg.qcow2'${RESET}"
+              read -e -p "Do you want to download it? (yes/no): " DOWNLOAD_CHOICE
+              case $DOWNLOAD_CHOICE in
+                yes|y)
+                  echo "Downloading Arch ISO (Latest) ISO..."
+                  wget -O $FINAL_CHOICE "https://mirror.citrahost.com/archlinux/images/latest/Arch-Linux-x86_64-cloudimg.qcow2"
+                  echo "File downloaded and saved to $FINAL_CHOICE."
+                  ;;
+                no|n)
+                  echo "Please input the correct ISO file and directory, then rename it to $FINAL_CHOICE."
+                  exit 1
+                  ;;
+                *)
+                  echo "Invalid choice, exiting."
+                  exit 1
+                  ;;
+              esac
+            else
+              echo "File found: $FINAL_CHOICE"
+            fi
+          ;;
+          2)
+            echo "Exiting..."
+            exit 1
+            ;;
+          *)
+            echo "Invalid choice"
+            exit 1
+            ;;
+        esac
+        ;;
+
+      4)
         echo "Exiting..."
         exit
         ;;
