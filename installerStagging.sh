@@ -211,10 +211,13 @@ select_bridge() {
     [[ $bridge == fwbr* ]] || bridges+=("$bridge")
   done < <(ip -o link show type bridge 2>/dev/null)
   (( ${#bridges[@]} )) || die "No network bridges found."
-  printf 'Available bridges:\n'
+  printf '+----------------------+\n'
+  printf '| Available bridges    |\n'
+  printf '+----------------------+\n'
   for bridge in "${bridges[@]}"; do
-    printf '  %s\n' "$bridge"
+    printf '| %-20s |\n' "$bridge"
   done
+  printf '+----------------------+\n'
   while :; do
     read -r -p "Network bridge [vmbr0]: " BRIDGE
     BRIDGE=${BRIDGE:-vmbr0}
