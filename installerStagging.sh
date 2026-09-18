@@ -251,7 +251,7 @@ configure_vm() {
   TOTAL_VCPU=$((CPU_SOCKETS * CPU_CORES))
   printf '%s sockets x %s cores = %s vCPU\n' "$CPU_SOCKETS" "$CPU_CORES" "$TOTAL_VCPU"
   while :; do read -r -p "Memory in MB [2048]: " MEMORY; MEMORY=${MEMORY:-2048}; is_positive_integer "$MEMORY" && break; warn "Memory must be a positive integer."; done
-  DISK_SIZE=20
+  while :; do read -r -p "Disk size in GB [20]: " DISK_SIZE; DISK_SIZE=${DISK_SIZE:-20}; is_positive_integer "$DISK_SIZE" && break; warn "Disk size must be a positive integer."; done
   CPU_TYPE=kvm64
   BALLOON=$MEMORY
   NUMA=0
