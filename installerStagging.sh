@@ -41,6 +41,15 @@ log() { printf '%b[INFO]%b %s\n' "$BLUE" "$RESET" "$*"; }
 ok() { printf '%b[ OK ]%b %s\n' "$GREEN" "$RESET" "$*"; }
 warn() { printf '%b[WARN]%b %s\n' "$YELLOW" "$RESET" "$*" >&2; }
 die() { printf '%b[FAIL]%b %s\n' "$RED" "$RESET" "$*" >&2; exit 1; }
+banner() {
+  printf '%b' "$CYAN"
+  printf '  ____ ____  __   _   _ ____  _____ ____\n'
+  printf ' / ___|  _ \\ \\ / / | \ | / ___|| ____/ ___|\n'
+  printf '| |   | |_) \\ \\ V /  |  \\| \\___ \\|  _|| |\n'
+  printf '| |___|  _ <   | |   | |\\  |___) | |__| |___\n'
+  printf ' \\____|_| \\_\\  |_|   |_| \\_|____/|_____\\____|\n'
+  printf '%b' "$RESET"
+}
 section() { printf '\n%b== %s ==%b\n' "$CYAN" "$*" "$RESET"; }
 
 run() {
@@ -374,7 +383,8 @@ main() {
     "") ;;
     *) usage; die "Unknown option: $1" ;;
   esac
-  printf '%b%s v%s%b\n%s\n' "$CYAN" "$PROJECT" "$VERSION" "$RESET" "CrynSec | Proxmox cloud-image VM creator"
+  banner
+  printf '%b%s v%s%b\n' "$CYAN" "$PROJECT" "$VERSION" "$RESET"
   (( DRY_RUN )) && warn "Dry-run prints mutating commands and skips downloading; storage and bridge discovery still query Proxmox."
   require_proxmox
   select_image
