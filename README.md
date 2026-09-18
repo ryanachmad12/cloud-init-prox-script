@@ -1,181 +1,126 @@
-# VM dengan Cloud Init Installer Script
+# CrynSec Proxmox Cloud-Init Installer
 
-**OpsLinuxSec CLOUD INIT INSTALLER** adalah script installer yang memungkinkan Anda untuk dengan mudah mengonfigurasi dan menginstal berbagai OS pada Proxmox Virtual Environment (PVE) menggunakan **CLOUD INIT**. Jika ISO yang diinginkan tidak tersedia di direktori `/var/lib/vz/images/`, script ini akan otomatis mengunduhnya untuk Anda.
+A single Bash script for creating Proxmox VMs from cloud images. It downloads or reuses a cached image, imports it, attaches the imported disk, and resizes the VM disk afterwards. Cached base images are never modified.
 
-> [!NOTE]
-> Added Debian **Trixie** choice to distro menu.
-> Update Terminal Styling
+## Features
 
-## Prasyarat
+- Central image database: Ubuntu 20.04/22.04/24.04, Debian 10-13, and Arch Latest
+- Custom RAW or QCOW2 cloud images with a URL, filename, and format
+- Validated VM ID, name, CPU sockets/cores, memory, disk size, storage, bridge, and image inputs
+- Proxmox storage and bridge selection, VirtIO networking, SCSI disk, Cloud-Init drive, and boot order
+- DHCP or static IPv4, DNS/search domain, default user, password, SSH key, and SSH password authentication setting
+- Optional QEMU Guest Agent channel plus guest installation through Cloud-Init
+- Optional packages, CPU type, ballooning, NUMA, BIOS, machine type, disk options, tags, description, and start choices
+- `--dry-run`, `--verbose`, `--help`, and `--version`
 
-Pastikan sistem Anda sudah memiliki dependensi berikut:
-- **wget**: untuk mengunduh ISO
-- **Proxmox VE**: untuk menjalankan VM
-- **Root**: tools ini membutuhkan akses root
+## Requirements
 
-### Memeriksa dan Menginstal Dependencies
+- Proxmox VE host
+- Root access
+- `qm`, `pvesm`, `pvesh`, `qemu-img`, `wget`, and `ip` (provided by a normal Proxmox host)
+- A Proxmox storage with `images` content enabled
+- A storage with `snippets` content enabled only when using QGA installation, additional packages, or disabled SSH password auth
 
-Script ini akan memeriksa apakah dependensi yang diperlukan sudah terinstal. Jika belum, maka dependensi akan diinstal secara otomatis.
+## Install And Run
 
-## Langkah Penggunaan
+```bash
+wget https://raw.githubusercontent.com/ryanachmad12/cloud-init-prox-script/main/installer.sh
+chmod +x installer.sh
+sudo ./installer.sh
+```
 
-1. **Unduh dan Persiapkan Script**
-   
-   Unduh script dan pastikan file ini dapat dieksekusi:
-   ```bash
-   wget https://github.com/ryanachmad12/cloud-init-prox-script/raw/refs/heads/main/installer.sh
-   chmod +x installer.sh
-   ```
+The installer is interactive by default. Use `sudo ./installer.sh --help` for options. `--dry-run` shows commands that would modify Proxmox and skips downloading, while still reading Proxmox storage and network information for the interactive prompts.
 
-2. **Jalankan Script Installer**
-   
-   Jalankan script dengan perintah berikut:
-   ```bash
-   bash installer.sh
-   ```
+## Supported Images
 
-### Proses Instalasi
+| OS | Version | Codename | Format |
+| --- | --- | --- | --- |
+| Ubuntu | 20.04 | Focal Fossa | RAW |
+| Ubuntu | 22.04 | Jammy Jellyfish | RAW |
+| Ubuntu | 24.04 | Noble Numbat | RAW |
+| Debian | 10 | Buster | QCOW2 |
+| Debian | 11 | Bullseye | QCOW2 |
+| Debian | 12 | Bookworm | QCOW2 |
+| Debian | 13 | Trixie | QCOW2 |
+| Arch | Latest | Rolling | QCOW2 |
 
-Saat menjalankan script, berikut adalah langkah-langkah yang akan diikuti:
+To add a supported image, add one `OS|VERSION|CODENAME|FILENAME|URL|FORMAT` entry to the `IMAGES` array in `installer.sh`. The menus use that database; no distro-specific install paths exist.
 
-1. **Memeriksa Dependencies**
-   
-   Script akan memeriksa apakah dependensi yang diperlukan sudah terinstal.
+## Image Cache And Disk Flow
 
-   ```bash
-   Memeriksa dependencies...
-   Dependencies sudah terinstal.
-   ```
+Downloaded images are cached in `/var/lib/vz/images`. Existing non-empty images can be reused or re-downloaded. Downloads use a `.part` file and are checked with `qemu-img info` before entering the cache.
 
-2. **Pilih OS yang Tersedia**
+```text
+cloud image cache -> qm importdisk -> attach as scsi0 -> qm resize
+```
 
-   Setelah memeriksa dependensi, Anda akan melihat menu utama:
+The original cloud image is not resized. Both RAW and QCOW2 images use the same import flow.
 
-   ```
-   =============================
-           OpsLinuxSec
-   =============================
-   Silakan dipilih untuk penginstalan
-   =============================
-           OpsLinuxSec
-   =============================
-   1. Pilih OS Yang Tersedia
-   2. Custom OS (Image Sendiri melalui link)
-   3. Exit
-   Pilihan Anda: 
-   ```
+## VM Resources
 
-   - **Pilih 1** untuk memilih OS yang sudah tersedia.
-   - **Pilih 2** untuk menggunakan link download yang Anda miliki.
-   - **Pilih 3** untuk keluar dari installer.
+The CPU prompts configure the VM topology, not physical host sockets:
 
-3. **Pilih Distro OS**
+```text
+CPU Sockets [1]: 2
+CPU Cores [2]: 4
+2 sockets x 4 cores = 8 vCPU
+```
 
-   Setelah memilih "Pilih OS Yang Tersedia", Anda akan diminta untuk memilih distro:
+Memory defaults to 2048 MB and disk size defaults to 20 GB. VM IDs must be numeric, at least 100, and unused. Names allow letters, digits, `.`, `_`, and `-`.
 
-   ```
-   =============================
-           OpsLinuxSec
-   =============================
-   Pilih Distro:
-   1. Ubuntu
-   2. Debian
-   3. Exit
-   Pilihan Anda:
-   ```
+## Cloud-Init, SSH, And Networking
 
-   - Pilih distro yang Anda inginkan, misalnya **Ubuntu**.
+The installer creates an `ide2` Cloud-Init drive and supports:
 
-4. **Pilih Versi Ubuntu**
+- A hostname and default user (`clouduser` by default)
+- Optional password and SSH public key
+- SSH password authentication toggle
+- DHCP or static IPv4 with gateway
+- Optional DNS servers and search domain
 
-   Setelah memilih Ubuntu, pilih versi yang diinginkan:
+For static networking, provide an address in CIDR form, such as `192.0.2.10/24`.
 
-   ```
-   ===========================
-           PILIH VERSI
-             UBUNTU
-   ===========================
-   1. 20.04
-   2. 22.04
-   3. 24.04
-   4. Exit
-   Pilihan Anda:
-   ```
+### QEMU Guest Agent
 
-   Pilih versi yang sesuai, misalnya **1** untuk Ubuntu 20.04.
+Enabling the option configures the Proxmox QGA channel with `--agent enabled=1`. It does not itself install software inside the guest. The installer also creates a Cloud-Init user-data snippet that installs and enables `qemu-guest-agent` in the guest. Therefore this option requires a snippets-capable Proxmox storage.
 
-5. **Periksa Ketersediaan Image**
+The same snippet mechanism is used for optional comma-separated packages, for example:
 
-   Jika file ISO tidak ditemukan atau memiliki nama yang berbeda di direktori `/var/lib/vz/images/`, script akan menampilkan pesan ini dan menanyakan apakah Anda ingin mengunduhnya:
+```text
+nginx,curl,htop,vim
+```
 
-   ```
-   File tidak ditemukan di /var/lib/vz/images/focal-server-cloudimg-amd64.img.
-   Silakan unduh ISO untuk Ubuntu 20.04 dan ganti nama file menjadi focal-server-cloudimg-amd64.img.
-   Apakah Anda ingin mengunduhnya? (yes/no):
-   ```
+Leave the packages prompt blank to keep the guest minimal.
 
-   - Pilih **yes** untuk mengunduh ISO atau **no** untuk mengganti nama file secara manual.
+## Example
 
-6. **Resize Disk dan Pengaturan VM**
+```text
+CrynSec Cloud-Init Installer v2.0.0
+CrynSec | Proxmox cloud-image VM creator
 
-   Setelah ISO tersedia, Anda akan diminta untuk menentukan ukuran disk dan ID VM. Berikut adalah langkah-langkahnya:
+Select operating system: 1
+Select version: 3
+Target storage: local-lvm
+Network bridge [vmbr0]:
+VM ID (minimum 100): 200
+VM name [ubuntu-24.04]: web-01
+CPU sockets [1]: 1
+CPU cores [2]: 2
+1 sockets x 2 cores = 2 vCPU
+Memory in MB [2048]: 4096
+Disk size in GB [20]: 40
+```
 
-   ```
-   Masukkan ukuran disk yang diinginkan (GB): 6
-   Image resized.
-   Ukuran disk berhasil diubah menjadi 6G.
-   ```
+On success, the script prints the VM configuration summary, `qm config <VMID>`, and the `qm start <VMID>` command.
 
-   Jika VM sudah ada, Anda akan diminta untuk memasukkan ID VM yang berbeda.
+## Troubleshooting
 
-   ```
-   Masukkan VM ID: 123
-   VM dengan ID 123 sudah ada. Silakan masukkan ID VM yang berbeda.
-   ```
+- Ensure the selected storage appears in `pvesm status -content images`.
+- Ensure the selected bridge exists, or explicitly accept use of a bridge that will be created later.
+- If Cloud-Init packages or QGA setup fails before VM creation, configure `snippets` content on a directory storage in Proxmox.
+- Check the image URL and internet access when downloads fail. Remove an incomplete cache file in `/var/lib/vz/images` if needed.
+- Inspect a created VM with `qm config <VMID>` and its guest Cloud-Init logs after boot.
 
-   Jika ID VM belum ada, Anda akan diminta untuk memasukkan informasi lebih lanjut tentang VM, seperti nama VM, ukuran memori, dan jumlah core:
+## License
 
-   ```
-   Masukkan VM ID: 222
-   Masukkan Nama VM: example
-   Masukkan ukuran memory (MB): 512
-   Masukkan jumlah core (default 1): 
-   Aktifkan agent (default 1): 
-   VM 222 berhasil dibuat dengan nama example.
-   ```
-
-7. **Pilih Target Disk**
-
-   Setelah membuat VM, Anda akan memilih disk target:
-
-   ```
-   Target Disk
-   ┌────────────────┬───────────┬─────────┬────────┬───────────┬─────────┬────────┬───────────┬───────────┬───────────────┐
-   │ content        │ storage   │ type    │ active │ avail     │ enabled │ shared │ total     │ used      │ used_fraction │
-   ╞════════════════╪═══════════╪═════════╪════════╪═══════════╪═════════╪════════╪═══════════╪═══════════╪═══════════════╡
-   │ rootdir,images │ local-lvm │ lvmthin │ 1      │ 10.10 GiB │ 1       │ 0      │ 11.80 GiB │ 1.70 GiB  │ 14.42%        │
-   └────────────────┴───────────┴─────────┴────────┴───────────┴─────────┴────────┴───────────┴───────────┴───────────────┘
-   Masukkan target storage (contoh: local-lvm): local-lvm 
-   ```
-
-8. **Proses Penyelesaian**
-
-   Setelah konfigurasi selesai, proses pembuatan dan konfigurasi VM akan berjalan otomatis.
-
-   ```
-   VM dengan ID 222 berhasil dibuat dan dikonfigurasi.
-   Silakan atur jaringan pada pengaturan VM sesuai kebutuhan.
-   ```
-
-### Menjadi Template
-
-Setelah VM selesai dibuat, Anda bisa menjadikannya template untuk kloning di masa depan.
-
-## Catatan
-
-- Pastikan Anda memiliki cukup ruang di disk untuk menyimpan ISO dan file VM.
-- Pastikan konfigurasi jaringan VM sudah sesuai setelah pembuatan.
-
----
-
-**OpsLinuxSec** memudahkan proses instalasi dan konfigurasi sistem operasi di Proxmox. Dengan pengunduhan otomatis dan pengaturan VM, Anda bisa menghemat waktu dalam manajemen virtualisasi.
+[MIT](LICENSE)

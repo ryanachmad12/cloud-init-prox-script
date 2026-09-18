@@ -1,479 +1,393 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# CrynSec Proxmox Cloud-Init Installer
 
-# Color Var
-RED="\e[31m"
-GREEN="\e[32m"
-YELLOW="\e[33m"
-BLUE="\e[34m"
-CYAN="\e[36m"
-RESET="\e[0m"
+set -Eeuo pipefail
 
-clear
+readonly VERSION="2.0.0"
+readonly PROJECT="CrynSec Cloud-Init Installer"
+readonly CACHE_DIR="/var/lib/vz/images"
 
- # Check root access
-if [ "$EUID" -ne 0 ]; then
-  echo "Use root access!"
-  exit
-fi
+# OS|VERSION|CODENAME|FILENAME|URL|FORMAT
+IMAGES=(
+  "Ubuntu|20.04|Focal Fossa|focal-server-cloudimg-amd64.img|https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img|raw"
+  "Ubuntu|22.04|Jammy Jellyfish|jammy-server-cloudimg-amd64.img|https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img|raw"
+  "Ubuntu|24.04|Noble Numbat|noble-server-cloudimg-amd64.img|https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img|raw"
+  "Debian|10|Buster|debian-10-generic-amd64.qcow2|https://cdimage.debian.org/images/cloud/buster/latest/debian-10-generic-amd64.qcow2|qcow2"
+  "Debian|11|Bullseye|debian-11-generic-amd64.qcow2|https://cdimage.debian.org/images/cloud/bullseye/latest/debian-11-generic-amd64.qcow2|qcow2"
+  "Debian|12|Bookworm|debian-12-generic-amd64.qcow2|https://cdimage.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2|qcow2"
+  "Debian|13|Trixie|debian-13-generic-amd64.qcow2|https://cdimage.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2|qcow2"
+  "Arch|Latest|Rolling|Arch-Linux-x86_64-cloudimg.qcow2|https://mirror.citrahost.com/archlinux/images/latest/Arch-Linux-x86_64-cloudimg.qcow2|qcow2"
+)
 
- # Check dependencies
-CHECK_DEPENDENCIES() {
-  echo "Checking dependencies..."
-  if ! dpkg -l | grep -qw "libguestfs-tools"; then
-    echo "Dependency not found."
-    echo "Installing dependencies..."
-    apt install -y libguestfs-tools
+DRY_RUN=0
+VERBOSE=0
+VM_CREATED=0
+SNIPPET_PATH=""
+SSH_KEY_FILE=""
 
-    if [ $? -eq 0 ]; then
-      echo "Dependencies successfully installed."
-    else
-      echo "Failed to install dependencies. Please check your network connection."
-      exit 1
-    fi
+RED=$'\033[0;31m'
+GREEN=$'\033[0;32m'
+YELLOW=$'\033[0;33m'
+BLUE=$'\033[0;34m'
+CYAN=$'\033[0;36m'
+RESET=$'\033[0m'
+
+usage() {
+  printf 'Usage: %s [--dry-run] [--verbose] [--help] [--version]\n' "${0##*/}"
+  printf 'Interactive Proxmox Cloud-Init VM creator by CrynSec.\n'
+}
+
+log() { printf '%b[INFO]%b %s\n' "$BLUE" "$RESET" "$*"; }
+ok() { printf '%b[ OK ]%b %s\n' "$GREEN" "$RESET" "$*"; }
+warn() { printf '%b[WARN]%b %s\n' "$YELLOW" "$RESET" "$*" >&2; }
+die() { printf '%b[FAIL]%b %s\n' "$RED" "$RESET" "$*" >&2; exit 1; }
+section() { printf '\n%b== %s ==%b\n' "$CYAN" "$*" "$RESET"; }
+
+run() {
+  if (( DRY_RUN )); then
+    printf '%b[DRY]%b' "$YELLOW" "$RESET"
+    printf ' %q' "$@"
+    printf '\n'
   else
-    echo "Dependencies are already installed."
+    (( VERBOSE )) && printf '+ %q ' "$@" && printf '\n'
+    "$@"
   fi
 }
 
-# Recheck dependencies
-CHECK_DEPENDENCIES
-sleep 1
-clear
-
-# ACSII Banner
-echo -e "${CYAN}"
-echo "#######               #                               #####                "
-echo "#     # #####   ####  #       # #    # #    # #    # #     # ######  ####  "
-echo "#     # #    # #      #       # ##   # #    #  #  #  #       #      #    # "
-echo "#     # #    #  ####  #       # # #  # #    #   ##    #####  #####  #      "
-echo "#     # #####       # #       # #  # # #    #   ##         # #      #      "
-echo "#     # #      #    # #       # #   ## #    #  #  #  #     # #      #    # "
-echo "####### #       ####  ####### # #    #  ####  #    #  #####  ######  ####  "
-echo -e "${RESET}"
-
-
-# Menu
-echo -e "${YELLOW}=====================================${RESET}"
-echo -e "${GREEN}        Cloud-Init Installer        ${RESET}"
-echo -e "${YELLOW}=====================================${RESET}"
-echo -e "${BLUE}Please select for installation${RESET}"
-echo -e "${YELLOW}=====================================${RESET}"
-echo -e "${CYAN}1.${RESET} Choose Available OS"
-echo -e "${CYAN}2.${RESET} Custom OS (Your Own Image)"
-echo -e "${CYAN}3.${RESET} Exit"
-echo -e "${YELLOW}=====================================${RESET}"
-
-read -e -p "Your choice: " CHOICE                                        
-case $CHOICE in
-  1)
-    clear
-    # Menu Distro
-    echo -e "${YELLOW}╔════════════════════╗${RESET}"
-    echo -e "${YELLOW}║${RESET}    ${CYAN}OpsLinuxSec${RESET}     ${YELLOW}║${RESET}"
-    echo -e "${YELLOW}╚════════════════════╝${RESET}"
-    echo -e "${GREEN}Select Distro:${RESET}"
-    echo -e "${BLUE}1.${RESET} Ubuntu"
-    echo -e "${BLUE}2.${RESET} Debian"
-    echo -e "${BLUE}3.${RESET} Arch"
-    echo -e "${BLUE}4.${RESET} Exit"
-    echo -e "${YELLOW}──────────────────────${RESET}"
-
-    read -e -p "Your choice: " DISTRO
-    case $DISTRO in
-      1)
-        clear
-	echo -e "${YELLOW}╔══════════════════════════════════════╗${RESET}"
-	echo -e "${YELLOW}║        CHOOSE UBUNTU VERSION         ║${RESET}"
-	echo -e "${YELLOW}╠════╦═══════════╦═════════════════════╣${RESET}"
-	echo -e "${YELLOW}║ No ║ Version   ║ Codename            ║${RESET}"
-	echo -e "${YELLOW}╠════╬═══════════╬═════════════════════╣${RESET}"
-	echo -e "${YELLOW}║ 1  ║ 20.04 LTS ║ Focal Fossa         ║${RESET}"
-	echo -e "${YELLOW}║ 2  ║ 22.04 LTS ║ Jammy Jellyfish     ║${RESET}"
-	echo -e "${YELLOW}║ 3  ║ 24.04 LTS ║ Noble Numbat        ║${RESET}"
-	echo -e "${YELLOW}║ 4  ║ Exit      ║ Exit Interrupt      ║${RESET}"
-	echo -e "${YELLOW}╚════╩═══════════╩═════════════════════╝${RESET}"
-
-	read -e -p "Your choice: " CHOICE_DISTRO 
-       case $CHOICE_DISTRO in
-          1)
-            FINAL_CHOICE="/var/lib/vz/images/focal-server-cloudimg-amd64.img"
-            if [ ! -f "$FINAL_CHOICE" ]; then
-              echo -e "${RED}File not found at $FINAL_CHOICE.${RESET}"
-              echo -e "${GREEN}Please download the Ubuntu 20.04 ISO and rename the file to 'focal-server-cloudimg-amd64.img'${RESET}"
-              read -e -p "Do you want to download it? (yes/no): " DOWNLOAD_CHOICE
-              case $DOWNLOAD_CHOICE in
-                yes|y)
-                  echo -e "${YELLOW}Downloading Ubuntu 20.04 ISO...${RESET}"
-                  wget -O $FINAL_CHOICE "https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img"
-                  echo "File downloaded and saved to $FINAL_CHOICE."
-                  ;;
-                no|n)
-                  echo "Please input the correct ISO file and directory, then rename it to $FINAL_CHOICE."
-                  exit 1
-                  ;;
-                *)
-                  echo "Invalid choice, exiting."
-                  exit 1
-                  ;;
-              esac
-            else
-              echo "File found: $FINAL_CHOICE"
-            fi 
-          ;;
-          2)
-            FINAL_CHOICE="/var/lib/vz/images/jammy-server-cloudimg-amd64.img"
-            if [ ! -f "$FINAL_CHOICE" ]; then
-              echo -e "${RED}File not found at $FINAL_CHOICE.${RESET}"
-              echo -e "${GREEN}Please download the Ubuntu 22.04 ISO and rename the file to 'jammy-server-cloudimg-amd64.img'${RESET}"
-              read -e -p "Do you want to download it? (yes/no): " DOWNLOAD_CHOICE
-              case $DOWNLOAD_CHOICE in
-                yes|y)
-                  echo "Downloading Ubuntu 22.04 ISO..."
-                  wget -O $FINAL_CHOICE "https://cloud-images.ubuntu.com/jammy/current/jammy-server-cloudimg-amd64.img"
-                  echo "File downloaded and saved to $FINAL_CHOICE."
-                  ;;
-                no|n)
-                  echo "Please input the correct ISO file and directory, then rename it to $FINAL_CHOICE."
-                  exit 1
-                  ;;
-                *)
-                  echo "Invalid choice, exiting."
-                  exit 1
-                  ;;
-              esac
-            else
-              echo "File found: $FINAL_CHOICE"
-            fi 
-          ;;
-          3)
-            FINAL_CHOICE="/var/lib/vz/images/noble-server-cloudimg-amd64.img"
-            if [ ! -f "$FINAL_CHOICE" ]; then
-              echo -e "${RED}File not found at $FINAL_CHOICE.${RESET}"
-              echo -e "${GREEN}Please download the Ubuntu 24.04 ISO and rename the file to 'noble-server-cloudimg-amd64.img'${RESET}"
-              read -e -p "Do you want to download it? (yes/no): " DOWNLOAD_CHOICE
-              case $DOWNLOAD_CHOICE in
-                yes|y)
-                  echo "Downloading Ubuntu 24.04 ISO..."
-                  wget -O $FINAL_CHOICE "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
-                  echo "File downloaded and saved to $FINAL_CHOICE."
-                  ;;  
-                no|n)
-                  echo "Please input the correct ISO file and directory, then rename it to $FINAL_CHOICE."
-                  exit 1
-                ;;
-                *)
-                  echo "Invalid choice, exiting."
-                  exit 1
-                  ;;
-              esac
-            else
-              echo "File found: $FINAL_CHOICE"
-            fi 
-          ;;  
-          4)
-            echo "Exiting..."
-            exit 1
-            ;;
-          *)
-            echo "Invalid choice"
-            exit 1
-            ;;
-        esac
-      ;;
-      2)
-        clear
-	echo -e "${YELLOW}╔══════════════════════════════════════╗${RESET}"
-	echo -e "${YELLOW}║         CHOOSE DEBIAN VERSION        ║${RESET}"
-	echo -e "${YELLOW}╠════╦═══════════╦═════════════════════╣${RESET}"
-	echo -e "${YELLOW}║ No ║ Version   ║ Codename            ║${RESET}"
-	echo -e "${YELLOW}╠════╬═══════════╬═════════════════════╣${RESET}"
-	echo -e "${YELLOW}║ 1  ║ 10        ║ Buster              ║${RESET}"
-	echo -e "${YELLOW}║ 2  ║ 11        ║ Bullseye            ║${RESET}"
-	echo -e "${YELLOW}║ 3  ║ 12        ║ Bookworm            ║${RESET}"
-	echo -e "${YELLOW}║ 4  ║ 13        ║ Trixie              ║${RESET}"
-	echo -e "${YELLOW}║ 5  ║ Exit      ║ Exit Interrupt      ║${RESET}"
-	echo -e "${YELLOW}╚════╩═══════════╩═════════════════════╝${RESET}"
-
-	read -e -p "Your choice: " CHOICE_DISTRO
-        case $CHOICE_DISTRO in
-          1)
-            FINAL_CHOICE="/var/lib/vz/images/debian-10-generic-amd64.qcow2"
-            if [ ! -f "$FINAL_CHOICE" ]; then
-              echo -e "${RED}File not found at $FINAL_CHOICE.${RESET}"
-              echo -e "${GREEN}Please download the Debian 10 (Buster) ISO and rename the file to 'debian-10-generic-amd64.qcow2'${RESET}"
-              read -e -p "Do you want to download it? (yes/no): " DOWNLOAD_CHOICE
-              case $DOWNLOAD_CHOICE in
-                yes|y)  
-                  echo "Downloading Debian 10 (Buster) ISO..."
-                  wget -O $FINAL_CHOICE "https://cdimage.debian.org/images/cloud/buster/latest/debian-10-generic-amd64.qcow2"
-                  echo "File downloaded and saved to $FINAL_CHOICE."
-                  ;;
-                no|n)
-                  echo "Please input the correct ISO file and directory, then rename it to $FINAL_CHOICE."
-                  exit 1
-                  ;;
-                *)
-                  echo "Invalid choice, exiting."
-                  exit 1
-                  ;;
-              esac
-            else
-              echo "File found: $FINAL_CHOICE"
-            fi 
-          ;;
-          2)
-            FINAL_CHOICE="/var/lib/vz/images/debian-11-generic-amd64.qcow2"
-            if [ ! -f "$FINAL_CHOICE" ]; then
-              echo -e "${RED}File not found at $FINAL_CHOICE.${RESET}"
-              echo -e "${GREEN}Please download the Debian 11 (Bullseye) ISO and rename the file to 'debian-11-generic-amd64.qcow2'${RESET}"
-              read -e -p "Do you want to download it? (yes/no): " DOWNLOAD_CHOICE
-              case $DOWNLOAD_CHOICE in
-                yes|y)
-                  echo "Downloading Debian 11 (Bullseye) ISO..."
-                  wget -O $FINAL_CHOICE "https://cdimage.debian.org/images/cloud/bullseye/latest/debian-11-generic-amd64.qcow2"
-                  echo "File downloaded and saved to $FINAL_CHOICE."
-                  ;;
-                no|n)
-                  echo "Please input the correct ISO file and directory, then rename it to $FINAL_CHOICE."
-                  exit 1
-                  ;;
-                *)
-                  echo "Invalid choice, exiting."
-                  exit 1
-                  ;;
-              esac
-            else
-              echo "File found: $FINAL_CHOICE"
-            fi 
-          ;;
-          3)
-            FINAL_CHOICE="/var/lib/vz/images/debian-12-generic-amd64.qcow2"
-            if [ ! -f "$FINAL_CHOICE" ]; then
-              echo -e "${RED}File not found at $FINAL_CHOICE.${RESET}"
-              echo -e "${GREEN}Please download the Debian 12 (Bookworm) ISO and rename the file to 'debian-12-generic-amd64.qcow2'"
-              read -e -p "Do you want to download it? (yes/no): " DOWNLOAD_CHOICE
-              case $DOWNLOAD_CHOICE in
-                yes|y)
-                  echo "Downloading Debian 12 (Bookworm) ISO..."
-                  wget -O $FINAL_CHOICE "https://cdimage.debian.org/images/cloud/bookworm/latest/debian-12-generic-amd64.qcow2"
-                  echo "File downloaded and saved to $FINAL_CHOICE."
-                  ;;  
-                no|n)
-                  echo "Please input the correct ISO file and directory, then rename it to $FINAL_CHOICE."
-                  exit 1
-                ;;
-                *)
-                  echo "Invalid choice, exiting."
-                  exit 1
-                ;;
-              esac
-            else
-              echo "File found: $FINAL_CHOICE"
-            fi 
-          ;;
-          4)
-            FINAL_CHOICE="/var/lib/vz/images/debian-13-generic-amd64.qcow2"
-            if [ ! -f "$FINAL_CHOICE" ]; then
-              echo -e "${RED}File not found at $FINAL_CHOICE.${RESET}"
-              echo -e "${GREEN}Please download the Debian 13 (Trixie) ISO and rename the file to 'debian-13-generic-amd64.qcow2'${RESET}"
-              read -e -p "Do you want to download it? (yes/no): " DOWNLOAD_CHOICE
-              case $DOWNLOAD_CHOICE in
-                yes|y)
-                  echo "Downloading Debian 13 (Trixie) ISO..."
-                  wget -O $FINAL_CHOICE "https://cdimage.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2"
-                  echo "File downloaded and saved to $FINAL_CHOICE."
-                  ;;
-                no|n)
-                  echo "Please input the correct ISO file and directory, then rename it to $FINAL_CHOICE."
-                  exit 1
-                  ;;
-                *)
-                  echo "Invalid choice, exiting."
-                  exit 1
-                  ;;
-              esac
-            else
-              echo "File found: $FINAL_CHOICE"
-            fi
-          ;;
-          5)
-            echo "Exiting..."
-            exit 1
-            ;;
-          *)
-            echo "Invalid choice"
-            exit 1
-            ;;
-        esac
-        ;;
-      3)
-        clear
-        echo -e "${YELLOW}╔══════════════════════════════════════╗${RESET}"
-        echo -e "${YELLOW}║         CHOOSE ARCH VERSION          ║${RESET}"
-        echo -e "${YELLOW}╠════╦═══════════╦═════════════════════╣${RESET}"
-        echo -e "${YELLOW}║ No ║ Version   ║ Codename            ║${RESET}"
-        echo -e "${YELLOW}╠════╬═══════════╬═════════════════════╣${RESET}"
-        echo -e "${YELLOW}║ 1  ║ Latest    ║ -                   ║${RESET}"
-        echo -e "${YELLOW}║ 2  ║ Exit      ║ Exit Interrupt      ║${RESET}"
-        echo -e "${YELLOW}╚════╩═══════════╩═════════════════════╝${RESET}"
-
-        read -e -p "Your choice: " CHOICE_DISTRO
-        case $CHOICE_DISTRO in
-          1)
-            FINAL_CHOICE="/var/lib/vz/images/Arch-Linux-x86_64-cloudimg.qcow2"
-            if [ ! -f "$FINAL_CHOICE" ]; then
-              echo -e "${RED}File not found at $FINAL_CHOICE.${RESET}"
-              echo -e "${GREEN}Please download the ARCH ISO and rename the file to 'Arch-Linux-x86_64-cloudimg.qcow2'${RESET}"
-              read -e -p "Do you want to download it? (yes/no): " DOWNLOAD_CHOICE
-              case $DOWNLOAD_CHOICE in
-                yes|y)
-                  echo "Downloading Arch ISO (Latest) ISO..."
-                  wget -O $FINAL_CHOICE "https://mirror.citrahost.com/archlinux/images/latest/Arch-Linux-x86_64-cloudimg.qcow2"
-                  echo "File downloaded and saved to $FINAL_CHOICE."
-                  ;;
-                no|n)
-                  echo "Please input the correct ISO file and directory, then rename it to $FINAL_CHOICE."
-                  exit 1
-                  ;;
-                *)
-                  echo "Invalid choice, exiting."
-                  exit 1
-                  ;;
-              esac
-            else
-              echo "File found: $FINAL_CHOICE"
-            fi
-          ;;
-          2)
-            echo "Exiting..."
-            exit 1
-            ;;
-          *)
-            echo "Invalid choice"
-            exit 1
-            ;;
-        esac
-        ;;
-
-      4)
-        echo "Exiting..."
-        exit
-        ;;
-      *)
-        echo "Invalid choice. Exiting..."
-        exit
-        ;;
-    esac
-    ;;
-  2)
-    read -e -p "Enter the download link: " DOWNLOADED
-    # Function to check if the ISO has already been downloaded
-    CHECK_FILE_HAS_DOWNLOADED() {
-      ISO_NAME=$(basename "$DOWNLOADED")  # Get file name from URL
-      FINAL_CHOICE="/var/lib/vz/images/$ISO_NAME"  # Path for custom OS image
-      
-      if [ -f "$FINAL_CHOICE" ]; then
-        echo "ISO for $ISO_NAME already exists at $FINAL_CHOICE."
-        return 1  # Return 1 if ISO already exists
-      else
-        return 0  # Return 0 if ISO doesn't exist
-      fi
-    }
-   
-    # Call function inside variable to check file in path
-    CHECK_FILE_HAS_DOWNLOADED
-
-    # If ISO doesn't exist, download using wget
-    if [ $? -eq 0 ]; then
-      echo "ISO not found. Downloading ISO $ISO_NAME..."
-      wget -O "$FINAL_CHOICE" "$DOWNLOADED"  # Download ISO to the specified path
-
-      if [ $? -eq 0 ]; then
-        echo "ISO successfully downloaded: $FINAL_CHOICE"
-      else
-        echo "Failed to download ISO from the link: $DOWNLOADED"
-        exit 1  # Exit if download fails
-      fi
-    else
-      # If ISO already exists, continue to resize disk
-      echo "Using existing ISO: $FINAL_CHOICE"
+cleanup() {
+  local status=$?
+  [[ -n "$SSH_KEY_FILE" ]] && rm -f -- "$SSH_KEY_FILE"
+  if (( status != 0 )); then
+    if (( VM_CREATED && ! DRY_RUN )); then
+      warn "Creation failed; removing incomplete VM ${VMID:-unknown}."
+      qm destroy "$VMID" --purge 1 >/dev/null 2>&1 || warn "Could not remove VM $VMID; inspect it with qm config $VMID."
     fi
-    ;;
-  3)
-    echo "Exiting..."
-    exit
-    ;;
-  *)
-    echo "Invalid choice. Exiting..."
-    exit
-    ;;
-esac
-
-# Resize disk for the chosen OS
-read -e -p "Enter the desired disk size (GB): " DISK_SIZE
-
-qemu-img resize --shrink "$FINAL_CHOICE" "${DISK_SIZE}G"
-# Check if command was successful
-if [ $? -ne 0 ]; then
-  echo -e "${RED}Failed to resize disk. Please check log error at bottom.${RESET}"
-  echo -e "${RED}And Run again after know the error what need you do${RESET}"
-  exit 1
-else
-  echo -e "${GREEN}Disk size successfully resized to ${DISK_SIZE}G.${RESET}"
-fi
-
-# Check if VMID is already used
-CHECK_VM_IF_EXISTS() {
-  if qm list | grep -w "$VMID" > /dev/null; then
-    echo -e "${RED}VM with ID $VMID already exists. Please use a different VMID.${RESET}"
-    return 1
-  else
-    return 0
+    [[ -n "$SNIPPET_PATH" ]] && rm -f -- "$SNIPPET_PATH"
   fi
+  exit "$status"
+}
+trap cleanup EXIT
+
+confirm() {
+  local prompt=$1 answer
+  read -r -p "$prompt [Y/n]: " answer
+  [[ -z "$answer" || "$answer" =~ ^[Yy]([Ee][Ss])?$ ]]
 }
 
-# Input VMID and validate if it's available
-while true; do
-  read -e -p "Enter VM ID: " VMID
-  CHECK_VM_IF_EXISTS && break
-done
+require_proxmox() {
+  [[ $EUID -eq 0 ]] || die "Run this installer as root."
+  local command
+  for command in qm pvesm qemu-img wget ip; do
+    command -v "$command" >/dev/null 2>&1 || die "Required command not found: $command"
+  done
+}
 
-# Other inputs
-read -e -p "Enter VM name: " NAME
-read -e -p "Enter memory size (MB): " MEMORY
-read -e -p "Enter number of cores (default 1): " CORE
-CORE=${CORE:-1}
-read -e -p "Enable agent (default 1): " AGENT
-AGENT=${AGENT:-1}
+is_positive_integer() { [[ $1 =~ ^[1-9][0-9]*$ ]]; }
+is_valid_name() { [[ $1 =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$ ]]; }
+is_valid_filename() { [[ $1 =~ ^[A-Za-z0-9][A-Za-z0-9._-]*\.(img|qcow2|raw)$ ]]; }
+is_valid_packages() { [[ -z $1 || $1 =~ ^[A-Za-z0-9][A-Za-z0-9+._-]*(,[A-Za-z0-9][A-Za-z0-9+._-]*)*$ ]]; }
+is_valid_ipv4() {
+  local ip=$1 octet
+  [[ $ip =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || return 1
+  IFS=. read -r -a octet <<< "$ip"
+  (( octet[0] <= 255 && octet[1] <= 255 && octet[2] <= 255 && octet[3] <= 255 ))
+}
 
-# Create VM
-qm create "$VMID" --name "$NAME" \
-  --memory "$MEMORY" \
-  --cores "$CORE" \
-  --agent "$AGENT" \
-  --vga serial0 --serial0 socket \
-  --net0 virtio,bridge=vmbr0
+select_image() {
+  local -a oses=() matches=()
+  local entry os version codename filename format choice i
 
-echo -e "${GREEN}VM $VMID successfully created with name $NAME.${RESET}"
+  for entry in "${IMAGES[@]}"; do
+    IFS='|' read -r os version codename filename _ format <<< "$entry"
+    for i in "${oses[@]:-}"; do [[ $i == "$os" ]] && continue 2; done
+    oses+=("$os")
+  done
 
+  section "Cloud Image"
+  printf '  0) Custom image\n'
+  for i in "${!oses[@]}"; do printf '  %d) %s\n' "$((i + 1))" "${oses[i]}"; done
+  while :; do
+    read -r -p "Select operating system: " choice
+    [[ $choice =~ ^[0-9]+$ ]] && (( choice >= 0 && choice <= ${#oses[@]} )) && break
+    warn "Select a listed number."
+  done
+  (( choice == 0 )) && { select_custom_image; return; }
+  SELECTED_OS=${oses[choice - 1]}
 
-# Get hostname
-HOSTNAME=$(cat /etc/hostname)
-###############################
-# Import Disk
-echo "==================="
-echo "Target Disk"
-pvesh get /nodes/"$HOSTNAME"/storage --content images
-read -e -p "Enter target storage (e.g., lvm-harddisk): " DISK
- qm importdisk "$VMID" "$FINAL_CHOICE" "$DISK"
+  for entry in "${IMAGES[@]}"; do
+    IFS='|' read -r os version codename filename _ format <<< "$entry"
+    [[ $os == "$SELECTED_OS" ]] && matches+=("$entry")
+  done
+  for i in "${!matches[@]}"; do
+    IFS='|' read -r os version codename filename _ format <<< "${matches[i]}"
+    printf '  %d) %s (%s) [%s]\n' "$((i + 1))" "$version" "$codename" "$format"
+  done
+  while :; do
+    read -r -p "Select version: " choice
+    [[ $choice =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= ${#matches[@]} )) && break
+    warn "Select a listed number."
+  done
+  IFS='|' read -r OS_NAME OS_VERSION OS_CODENAME IMAGE_FILENAME IMAGE_URL IMAGE_FORMAT <<< "${matches[choice - 1]}"
+}
 
-# Configure VM
- qm set "$VMID" --scsihw virtio-scsi-pci --scsi0 "$DISK":vm-${VMID}-disk-0,discard=on,ssd=1
- qm set "$VMID" --boot order=scsi0
- qm set "$VMID" --ide2 "$DISK":cloudinit
+select_custom_image() {
+  OS_NAME="Custom" OS_VERSION="Custom" OS_CODENAME="User supplied"
+  while :; do
+    read -r -p "Cloud image URL: " IMAGE_URL
+    [[ -n $IMAGE_URL && $IMAGE_URL =~ ^https://[^[:space:]]+$ ]] && break
+    warn "Enter a non-empty HTTPS URL."
+  done
+  while :; do
+    read -r -p "Filename (for example image.qcow2): " IMAGE_FILENAME
+    is_valid_filename "$IMAGE_FILENAME" && break
+    warn "Use a filename ending in .img, .raw, or .qcow2 (no path separators)."
+  done
+  while :; do
+    read -r -p "Image format [qcow2]: " IMAGE_FORMAT
+    IMAGE_FORMAT=${IMAGE_FORMAT:-qcow2}
+    [[ $IMAGE_FORMAT == raw || $IMAGE_FORMAT == qcow2 ]] && break
+    warn "Format must be raw or qcow2."
+  done
+}
 
+cache_image() {
+  local image_path="$CACHE_DIR/$IMAGE_FILENAME" answer
+  run mkdir -p -- "$CACHE_DIR"
+  if [[ -s $image_path ]]; then
+    read -r -p "Cached image $IMAGE_FILENAME exists. Reuse it? [Y/n]: " answer
+    if [[ -z $answer || $answer =~ ^[Yy]([Ee][Ss])?$ ]]; then
+      ok "Reusing cached image: $image_path"
+      IMAGE_PATH=$image_path
+      return
+    fi
+    warn "Re-downloading $IMAGE_FILENAME."
+  elif [[ -e $image_path ]]; then
+    warn "Removing incomplete or empty cached image: $image_path"
+    run rm -f -- "$image_path"
+  fi
+  log "Downloading $IMAGE_URL"
+  run wget --https-only --show-progress -O "$image_path.part" "$IMAGE_URL"
+  if (( ! DRY_RUN )); then
+    [[ -s $image_path.part ]] || die "Download is empty or incomplete."
+    qemu-img info "$image_path.part" >/dev/null || die "Downloaded file is not a readable QEMU image."
+  fi
+  run mv -- "$image_path.part" "$image_path"
+  IMAGE_PATH=$image_path
+  ok "Cached image: $IMAGE_PATH"
+}
 
-# Final sessions
-echo -e "${CYAN}Please set this VM as a template for continuous cloning.${RESET}"
-echo -e "${CYAN}VM with ID $VMID successfully created and configured.${RESET}"
-echo -e "${YELLOW}Please configure the network in the VM settings as needed.${RESET}"
+select_storage() {
+  local name status choice
+  STORAGE_OPTIONS=()
+  section "VM Storage"
+  pvesm status -content images || die "Could not list image-capable storage."
+  while read -r name _ status _; do
+    [[ $name == Name || -z $name ]] && continue
+    [[ $status == active ]] && STORAGE_OPTIONS+=("$name")
+  done < <(pvesm status -content images 2>/dev/null)
+  (( ${#STORAGE_OPTIONS[@]} )) || die "No active storage accepts VM images."
+  while :; do
+    read -r -p "Target storage: " STORAGE
+    for name in "${STORAGE_OPTIONS[@]}"; do [[ $STORAGE == "$name" ]] && return; done
+    warn "Choose an active storage shown above."
+  done
+}
+
+select_bridge() {
+  local bridge answer
+  section "Network"
+  printf 'Available bridges: '
+  while read -r _ bridge _; do printf '%s ' "${bridge%:}"; done < <(ip -o link show type bridge 2>/dev/null)
+  printf '\n'
+  while :; do
+    read -r -p "Network bridge [vmbr0]: " BRIDGE
+    BRIDGE=${BRIDGE:-vmbr0}
+    ip link show dev "$BRIDGE" >/dev/null 2>&1 && break
+    warn "Bridge $BRIDGE does not exist on this host."
+    confirm "Use it anyway (for a bridge created before VM start)?" && break
+  done
+}
+
+configure_vm() {
+  local default_name answer
+  section "VM Configuration"
+  while :; do
+    read -r -p "VM ID (minimum 100): " VMID
+    if ! is_positive_integer "$VMID" || (( VMID < 100 )); then
+      warn "VM ID must be a number of at least 100."
+      continue
+    fi
+    qm status "$VMID" >/dev/null 2>&1 && { warn "VM ID $VMID already exists."; continue; }
+    break
+  done
+  default_name=$(printf '%s-%s' "${OS_NAME,,}" "${OS_VERSION,,}" | tr -cd 'A-Za-z0-9._-')
+  while :; do
+    read -r -p "VM name [$default_name]: " VM_NAME
+    VM_NAME=${VM_NAME:-$default_name}
+    is_valid_name "$VM_NAME" && break
+    warn "Use 1-63 letters, digits, dots, underscores, or hyphens; start with a letter or digit."
+  done
+  while :; do read -r -p "CPU sockets [1]: " CPU_SOCKETS; CPU_SOCKETS=${CPU_SOCKETS:-1}; [[ $CPU_SOCKETS == 1 || $CPU_SOCKETS == 2 ]] && break; warn "Sockets must be 1 or 2."; done
+  while :; do read -r -p "CPU cores [2]: " CPU_CORES; CPU_CORES=${CPU_CORES:-2}; is_positive_integer "$CPU_CORES" && break; warn "Cores must be a positive integer."; done
+  TOTAL_VCPU=$((CPU_SOCKETS * CPU_CORES))
+  printf '%s sockets x %s cores = %s vCPU\n' "$CPU_SOCKETS" "$CPU_CORES" "$TOTAL_VCPU"
+  while :; do read -r -p "Memory in MB [2048]: " MEMORY; MEMORY=${MEMORY:-2048}; is_positive_integer "$MEMORY" && break; warn "Memory must be a positive integer."; done
+  while :; do read -r -p "Disk size in GB [20]: " DISK_SIZE; DISK_SIZE=${DISK_SIZE:-20}; is_positive_integer "$DISK_SIZE" && break; warn "Disk size must be a positive integer."; done
+  read -r -p "CPU type [kvm64]: " CPU_TYPE; CPU_TYPE=${CPU_TYPE:-kvm64}
+  [[ $CPU_TYPE =~ ^[A-Za-z0-9._+-]+$ ]] || die "Invalid CPU type."
+  confirm "Enable memory ballooning?" && BALLOON=$MEMORY || BALLOON=0
+  confirm "Enable NUMA?" && NUMA=1 || NUMA=0
+  confirm "Use OVMF (UEFI) BIOS?" && BIOS=ovmf || BIOS=seabios
+  read -r -p "Machine type [q35]: " MACHINE; MACHINE=${MACHINE:-q35}
+  [[ $MACHINE =~ ^[A-Za-z0-9._+-]+$ ]] || die "Invalid machine type."
+  confirm "Enable disk I/O thread?" && IOTHREAD=1 || IOTHREAD=0
+  confirm "Enable discard/TRIM?" && DISCARD=on || DISCARD=ignore
+  confirm "Enable SSD emulation?" && SSD=1 || SSD=0
+  confirm "Start VM at host boot?" && ONBOOT=1 || ONBOOT=0
+  confirm "Start VM after creation?" && START_VM=1 || START_VM=0
+  read -r -p "VM tags (semicolon-separated, optional): " TAGS
+  [[ -z $TAGS || $TAGS =~ ^[A-Za-z0-9._+-]+(\;[A-Za-z0-9._+-]+)*$ ]] || die "Invalid tags."
+  read -r -p "VM description (optional): " DESCRIPTION
+}
+
+configure_cloud_init() {
+  local answer key
+  section "Cloud-Init"
+  read -r -p "Guest hostname [$VM_NAME]: " CI_HOSTNAME; CI_HOSTNAME=${CI_HOSTNAME:-$VM_NAME}
+  is_valid_name "$CI_HOSTNAME" || die "Invalid hostname."
+  while :; do read -r -p "Default guest user [clouduser]: " CI_USER; CI_USER=${CI_USER:-clouduser}; [[ $CI_USER =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] && break; warn "Enter a valid Linux user name."; done
+  read -r -s -p "Guest password (leave blank to omit): " CI_PASSWORD; printf '\n'
+  read -r -p "SSH public key (paste one line, optional): " key
+  if [[ -n $key ]]; then
+    [[ $key =~ ^(ssh-|ecdsa-|sk-) ]] || die "SSH key must begin with a recognized public-key type."
+    SSH_KEY_FILE=$(mktemp)
+    printf '%s\n' "$key" > "$SSH_KEY_FILE"
+  fi
+  confirm "Allow SSH password authentication?" && SSH_PASSWORD_AUTH=1 || SSH_PASSWORD_AUTH=0
+  printf '  1) DHCP\n  2) Static IPv4\n'
+  while :; do read -r -p "Network mode [1]: " answer; answer=${answer:-1}; [[ $answer == 1 || $answer == 2 ]] && break; warn "Select 1 or 2."; done
+  if [[ $answer == 1 ]]; then
+    IP_CONFIG="ip=dhcp"
+    GATEWAY=""
+  else
+    while :; do read -r -p "IPv4 address with CIDR (for example 192.0.2.10/24): " IP_ADDRESS; [[ $IP_ADDRESS =~ ^(.+)/([0-9]|[12][0-9]|3[0-2])$ ]] && is_valid_ipv4 "${BASH_REMATCH[1]}" && break; warn "Enter a valid IPv4 address and CIDR prefix."; done
+    while :; do read -r -p "IPv4 gateway: " GATEWAY; is_valid_ipv4 "$GATEWAY" && break; warn "Enter a valid IPv4 gateway."; done
+    IP_CONFIG="ip=$IP_ADDRESS,gw=$GATEWAY"
+  fi
+  read -r -p "DNS servers (space-separated, optional): " DNS
+  [[ -z $DNS || $DNS =~ ^[0-9a-fA-F:.[:space:]]+$ ]] || die "DNS may contain only IP addresses separated by spaces."
+  read -r -p "DNS search domain (optional): " SEARCH_DOMAIN
+  [[ -z $SEARCH_DOMAIN || $SEARCH_DOMAIN =~ ^[A-Za-z0-9.-]+$ ]] || die "Invalid search domain."
+  confirm "Enable Proxmox QEMU Guest Agent channel?" && QGA_ENABLED=1 || QGA_ENABLED=0
+  read -r -p "Additional packages (comma-separated, optional): " ADDITIONAL_PACKAGES
+  is_valid_packages "$ADDITIONAL_PACKAGES" || die "Packages must be comma-separated package names."
+}
+
+create_cloud_init_snippet() {
+  local snippet_storage filename package_yaml="" package
+  [[ $QGA_ENABLED == 1 || -n $ADDITIONAL_PACKAGES || $SSH_PASSWORD_AUTH == 0 ]] || return
+  if (( DRY_RUN )); then
+    CI_CUSTOM="local:snippets/crynsec-${VMID}-user.yaml"
+    return
+  fi
+  local -a snippets=()
+  while read -r line; do
+    [[ $line == Name* || -z $line ]] && continue
+    snippets+=("${line%% *}")
+  done < <(pvesm status -content snippets 2>/dev/null || true)
+  (( ${#snippets[@]} )) || die "Cloud-Init user-data is required but no snippets storage is configured. Add 'snippets' content to a directory storage."
+  snippet_storage=${snippets[0]}
+  filename="crynsec-${VMID}-user.yaml"
+  SNIPPET_PATH=$(pvesm path "$snippet_storage:snippets/$filename") || die "Could not resolve snippets storage path."
+  run mkdir -p -- "$(dirname "$SNIPPET_PATH")"
+  {
+    printf '#cloud-config\n'
+    printf 'hostname: %s\nmanage_etc_hosts: true\n' "$CI_HOSTNAME"
+    [[ $SSH_PASSWORD_AUTH == 0 ]] && printf 'ssh_pwauth: false\n'
+    if [[ $QGA_ENABLED == 1 || -n $ADDITIONAL_PACKAGES ]]; then
+      printf 'packages:\n'
+      [[ $QGA_ENABLED == 1 ]] && printf '  - qemu-guest-agent\n'
+      IFS=, read -r -a package_yaml <<< "$ADDITIONAL_PACKAGES"
+      for package in "${package_yaml[@]:-}"; do [[ -n $package ]] && printf '  - %s\n' "$package"; done
+    fi
+    [[ $QGA_ENABLED == 1 ]] && printf 'runcmd:\n  - [systemctl, enable, --now, qemu-guest-agent]\n'
+  } > "$SNIPPET_PATH"
+  CI_CUSTOM="$snippet_storage:snippets/$filename"
+}
+
+preview() {
+  section "Configuration Preview"
+  printf 'VM: %s (%s)\nImage: %s %s (%s), %s\nStorage: %s | Disk: %s GB\nCPU: %s sockets x %s cores = %s vCPU | Memory: %s MB\nNetwork: %s via %s\nQGA: Proxmox channel %s; guest installation %s\n' \
+    "$VMID" "$VM_NAME" "$OS_NAME" "$OS_VERSION" "$OS_CODENAME" "$IMAGE_FORMAT" "$STORAGE" "$DISK_SIZE" "$CPU_SOCKETS" "$CPU_CORES" "$TOTAL_VCPU" "$MEMORY" "$IP_CONFIG" "$BRIDGE" \
+    "$([[ $QGA_ENABLED == 1 ]] && printf enabled || printf disabled)" "$([[ $QGA_ENABLED == 1 ]] && printf 'via Cloud-Init' || printf 'not requested')"
+}
+
+find_imported_disk() {
+  local line
+  while IFS= read -r line; do
+    if [[ $line =~ ^unused[0-9]+:\ ([^,]+) ]]; then
+      printf '%s\n' "${BASH_REMATCH[1]}"
+      return
+    fi
+  done < <(qm config "$VMID")
+  return 1
+}
+
+create_vm() {
+  local imported_disk
+  section "Creating VM"
+  run qm create "$VMID" --name "$VM_NAME" --memory "$MEMORY" --balloon "$BALLOON" --sockets "$CPU_SOCKETS" --cores "$CPU_CORES" --cpu "$CPU_TYPE" --numa "$NUMA" --bios "$BIOS" --machine "$MACHINE" --scsihw virtio-scsi-single --net0 "virtio,bridge=$BRIDGE" --onboot "$ONBOOT" --tags "$TAGS" --description "$DESCRIPTION"
+  VM_CREATED=1
+  [[ $BIOS == ovmf ]] && run qm set "$VMID" --efidisk0 "$STORAGE:0,efitype=4m,pre-enrolled-keys=1"
+  [[ $QGA_ENABLED == 1 ]] && run qm set "$VMID" --agent enabled=1
+  run qm importdisk "$VMID" "$IMAGE_PATH" "$STORAGE"
+  if (( DRY_RUN )); then
+    imported_disk="$STORAGE:vm-$VMID-disk-0"
+  else
+    imported_disk=$(find_imported_disk) || die "Import completed but no unused disk was found."
+  fi
+  run qm set "$VMID" --scsi0 "$imported_disk,cache=none,iothread=$IOTHREAD,discard=$DISCARD,ssd=$SSD"
+  run qm resize "$VMID" scsi0 "${DISK_SIZE}G"
+  run qm set "$VMID" --ide2 "$STORAGE:cloudinit" --boot order=scsi0 --ciuser "$CI_USER" --ipconfig0 "$IP_CONFIG"
+  [[ -n $CI_PASSWORD ]] && run qm set "$VMID" --cipassword "$CI_PASSWORD"
+  [[ -n $SSH_KEY_FILE ]] && run qm set "$VMID" --sshkeys "$SSH_KEY_FILE"
+  [[ -n $DNS ]] && run qm set "$VMID" --nameserver "$DNS"
+  [[ -n $SEARCH_DOMAIN ]] && run qm set "$VMID" --searchdomain "$SEARCH_DOMAIN"
+  [[ -n ${CI_CUSTOM:-} ]] && run qm set "$VMID" --cicustom "user=$CI_CUSTOM"
+  [[ $START_VM == 1 ]] && run qm start "$VMID"
+}
+
+final_summary() {
+  section "VM Created - CrynSec"
+  printf 'VM ID: %s\nVM Name: %s\nOperating System: %s %s (%s)\nStorage: %s\nDisk: %s GB\nMemory: %s MB\nCPU Sockets: %s\nCPU Cores: %s\nTotal vCPU: %s\nNetwork Bridge: %s\nQEMU Guest Agent: Proxmox channel %s; guest package %s\nCloud-Init: ide2 configured\n\nInspect: qm config %s\nStart:   qm start %s\n' \
+    "$VMID" "$VM_NAME" "$OS_NAME" "$OS_VERSION" "$OS_CODENAME" "$STORAGE" "$DISK_SIZE" "$MEMORY" "$CPU_SOCKETS" "$CPU_CORES" "$TOTAL_VCPU" "$BRIDGE" \
+    "$([[ $QGA_ENABLED == 1 ]] && printf enabled || printf disabled)" "$([[ $QGA_ENABLED == 1 ]] && printf 'installed and enabled by Cloud-Init' || printf 'not requested')" "$VMID" "$VMID"
+  (( DRY_RUN )) || qm config "$VMID"
+}
+
+main() {
+  case ${1:-} in
+    --help|-h) usage; exit 0 ;;
+    --version|-V) printf '%s %s\n' "$PROJECT" "$VERSION"; exit 0 ;;
+    --dry-run) DRY_RUN=1 ;;
+    --verbose|-v) VERBOSE=1 ;;
+    "") ;;
+    *) usage; die "Unknown option: $1" ;;
+  esac
+  printf '%b%s v%s%b\n%s\n' "$CYAN" "$PROJECT" "$VERSION" "$RESET" "CrynSec | Proxmox cloud-image VM creator"
+  (( DRY_RUN )) && warn "Dry-run prints mutating commands and skips downloading; storage and bridge discovery still query Proxmox."
+  require_proxmox
+  select_image
+  cache_image
+  select_storage
+  select_bridge
+  configure_vm
+  configure_cloud_init
+  preview
+  confirm "Create this VM?" || { log "Cancelled."; exit 0; }
+  create_cloud_init_snippet
+  create_vm
+  final_summary
+}
+
+main "$@"
