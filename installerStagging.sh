@@ -328,9 +328,16 @@ create_cloud_init_snippet() {
 
 preview() {
   section "Configuration Preview"
-  printf 'VM: %s (%s)\nImage: %s %s (%s), %s\nStorage: %s | Disk: %s GB\nCPU: %s sockets x %s cores = %s vCPU | Memory: %s MB\nNetwork: %s via %s\nQGA: Proxmox channel %s; guest installation %s\n' \
-    "$VMID" "$VM_NAME" "$OS_NAME" "$OS_VERSION" "$OS_CODENAME" "$IMAGE_FORMAT" "$STORAGE" "$DISK_SIZE" "$CPU_SOCKETS" "$CPU_CORES" "$TOTAL_VCPU" "$MEMORY" "$IP_CONFIG" "$BRIDGE" \
-    "$([[ $QGA_ENABLED == 1 ]] && printf enabled || printf disabled)" "$([[ $QGA_ENABLED == 1 ]] && printf 'via Cloud-Init' || printf 'not requested')"
+  printf '+----------------+--------------------------------------------------+\n'
+  printf '| %-14s | %-48s |\n' "VM" "$VMID ($VM_NAME)"
+  printf '| %-14s | %-48s |\n' "Image" "$OS_NAME $OS_VERSION ($OS_CODENAME), $IMAGE_FORMAT"
+  printf '| %-14s | %-48s |\n' "Storage" "$STORAGE"
+  printf '| %-14s | %-48s |\n' "Disk" "$DISK_SIZE GB"
+  printf '| %-14s | %-48s |\n' "CPU" "$CPU_SOCKETS sockets x $CPU_CORES cores = $TOTAL_VCPU vCPU"
+  printf '| %-14s | %-48s |\n' "Memory" "$MEMORY MB"
+  printf '| %-14s | %-48s |\n' "Network" "$IP_CONFIG via $BRIDGE"
+  printf '| %-14s | %-48s |\n' "QGA" "$([[ $QGA_ENABLED == 1 ]] && printf enabled || printf disabled)"
+  printf '+----------------+--------------------------------------------------+\n'
 }
 
 find_imported_disk() {
