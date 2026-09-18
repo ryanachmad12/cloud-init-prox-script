@@ -10,7 +10,7 @@ A single Bash script for creating Proxmox VMs from cloud images. It downloads or
 - Proxmox storage and bridge selection, VirtIO networking, SCSI disk, Cloud-Init drive, and boot order
 - DHCP or static IPv4, DNS/search domain, default user, password, SSH key, and SSH password authentication setting
 - Optional QEMU Guest Agent channel plus guest installation through Cloud-Init
-- Optional packages, CPU type, ballooning, NUMA, BIOS, machine type, disk options, tags, description, and start choices
+- Sensible defaults for disk, CPU type, ballooning, BIOS, machine type, and disk options
 - `--dry-run`, `--verbose`, `--help`, and `--version`
 
 ## Requirements
@@ -66,7 +66,7 @@ CPU Cores [2]: 4
 2 sockets x 4 cores = 8 vCPU
 ```
 
-Memory defaults to 2048 MB and disk size defaults to 20 GB. VM IDs must be numeric, at least 100, and unused. Names allow letters, digits, `.`, `_`, and `-`.
+Memory defaults to 2048 MB and disk size is 20 GB. VM IDs must be numeric, at least 100, and unused. Names allow letters, digits, `.`, `_`, and `-`.
 
 ## Cloud-Init, SSH, And Networking
 

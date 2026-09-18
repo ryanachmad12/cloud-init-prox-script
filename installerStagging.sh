@@ -86,7 +86,7 @@ confirm() {
 require_proxmox() {
   [[ $EUID -eq 0 ]] || die "Run this installer as root."
   local command
-  for command in qm pvesm qemu-img wget ip; do
+  for command in qm pvesh pvesm qemu-img wget ip; do
     command -v "$command" >/dev/null 2>&1 || die "Required command not found: $command"
   done
 }
@@ -186,10 +186,10 @@ cache_image() {
 }
 
 select_storage() {
-  local name status choice
+  local name status
   STORAGE_OPTIONS=()
   section "VM Storage"
-  pvesm status -content images || die "Could not list image-capable storage."
+  pvesh get "/nodes/$(hostname)/storage" --content images || die "Could not list image-capable storage."
   while read -r name _ status _; do
     [[ $name == Name || -z $name ]] && continue
     [[ $status == active ]] && STORAGE_OPTIONS+=("$name")
@@ -203,11 +203,18 @@ select_storage() {
 }
 
 select_bridge() {
-  local bridge answer
+  local bridge
+  local -a bridges=()
   section "Network"
-  printf 'Available bridges: '
-  while read -r _ bridge _; do printf '%s ' "${bridge%:}"; done < <(ip -o link show type bridge 2>/dev/null)
-  printf '\n'
+  while read -r _ bridge _; do
+    bridge=${bridge%:}
+    [[ $bridge == fwbr* ]] || bridges+=("$bridge")
+  done < <(ip -o link show type bridge 2>/dev/null)
+  (( ${#bridges[@]} )) || die "No network bridges found."
+  printf 'Available bridges:\n'
+  for bridge in "${bridges[@]}"; do
+    printf '  %s\n' "$bridge"
+  done
   while :; do
     read -r -p "Network bridge [vmbr0]: " BRIDGE
     BRIDGE=${BRIDGE:-vmbr0}
@@ -241,22 +248,17 @@ configure_vm() {
   TOTAL_VCPU=$((CPU_SOCKETS * CPU_CORES))
   printf '%s sockets x %s cores = %s vCPU\n' "$CPU_SOCKETS" "$CPU_CORES" "$TOTAL_VCPU"
   while :; do read -r -p "Memory in MB [2048]: " MEMORY; MEMORY=${MEMORY:-2048}; is_positive_integer "$MEMORY" && break; warn "Memory must be a positive integer."; done
-  while :; do read -r -p "Disk size in GB [20]: " DISK_SIZE; DISK_SIZE=${DISK_SIZE:-20}; is_positive_integer "$DISK_SIZE" && break; warn "Disk size must be a positive integer."; done
-  read -r -p "CPU type [kvm64]: " CPU_TYPE; CPU_TYPE=${CPU_TYPE:-kvm64}
-  [[ $CPU_TYPE =~ ^[A-Za-z0-9._+-]+$ ]] || die "Invalid CPU type."
-  confirm "Enable memory ballooning?" && BALLOON=$MEMORY || BALLOON=0
-  confirm "Enable NUMA?" && NUMA=1 || NUMA=0
-  confirm "Use OVMF (UEFI) BIOS?" && BIOS=ovmf || BIOS=seabios
-  read -r -p "Machine type [q35]: " MACHINE; MACHINE=${MACHINE:-q35}
-  [[ $MACHINE =~ ^[A-Za-z0-9._+-]+$ ]] || die "Invalid machine type."
-  confirm "Enable disk I/O thread?" && IOTHREAD=1 || IOTHREAD=0
-  confirm "Enable discard/TRIM?" && DISCARD=on || DISCARD=ignore
-  confirm "Enable SSD emulation?" && SSD=1 || SSD=0
-  confirm "Start VM at host boot?" && ONBOOT=1 || ONBOOT=0
-  confirm "Start VM after creation?" && START_VM=1 || START_VM=0
-  read -r -p "VM tags (semicolon-separated, optional): " TAGS
-  [[ -z $TAGS || $TAGS =~ ^[A-Za-z0-9._+-]+(\;[A-Za-z0-9._+-]+)*$ ]] || die "Invalid tags."
-  read -r -p "VM description (optional): " DESCRIPTION
+  DISK_SIZE=20
+  CPU_TYPE=kvm64
+  BALLOON=$MEMORY
+  NUMA=0
+  BIOS=seabios
+  MACHINE=q35
+  IOTHREAD=1
+  DISCARD=on
+  SSD=1
+  ONBOOT=0
+  START_VM=0
 }
 
 configure_cloud_init() {
@@ -345,7 +347,7 @@ find_imported_disk() {
 create_vm() {
   local imported_disk
   section "Creating VM"
-  run qm create "$VMID" --name "$VM_NAME" --memory "$MEMORY" --balloon "$BALLOON" --sockets "$CPU_SOCKETS" --cores "$CPU_CORES" --cpu "$CPU_TYPE" --numa "$NUMA" --bios "$BIOS" --machine "$MACHINE" --scsihw virtio-scsi-single --net0 "virtio,bridge=$BRIDGE" --onboot "$ONBOOT" --tags "$TAGS" --description "$DESCRIPTION"
+  run qm create "$VMID" --name "$VM_NAME" --memory "$MEMORY" --balloon "$BALLOON" --sockets "$CPU_SOCKETS" --cores "$CPU_CORES" --cpu "$CPU_TYPE" --numa "$NUMA" --bios "$BIOS" --machine "$MACHINE" --scsihw virtio-scsi-single --net0 "virtio,bridge=$BRIDGE" --onboot "$ONBOOT"
   VM_CREATED=1
   [[ $BIOS == ovmf ]] && run qm set "$VMID" --efidisk0 "$STORAGE:0,efitype=4m,pre-enrolled-keys=1"
   [[ $QGA_ENABLED == 1 ]] && run qm set "$VMID" --agent enabled=1
