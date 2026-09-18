@@ -267,7 +267,7 @@ configure_cloud_init() {
   read -r -p "Guest hostname [$VM_NAME]: " CI_HOSTNAME; CI_HOSTNAME=${CI_HOSTNAME:-$VM_NAME}
   is_valid_name "$CI_HOSTNAME" || die "Invalid hostname."
   while :; do read -r -p "Default guest user [clouduser]: " CI_USER; CI_USER=${CI_USER:-clouduser}; [[ $CI_USER =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] && break; warn "Enter a valid Linux user name."; done
-  read -r -s -p "Guest password (leave blank to omit): " CI_PASSWORD; printf '\n'
+  read -r -s -p "Guest password (leave blank to omit): " CI_PASSWORD; CI_PASSWORD=${CI_PASSWORD:-omit}; printf '\n'
   read -r -p "SSH public key (paste one line, optional): " key
   if [[ -n $key ]]; then
     [[ $key =~ ^(ssh-|ecdsa-|sk-) ]] || die "SSH key must begin with a recognized public-key type."
@@ -298,7 +298,7 @@ create_cloud_init_snippet() {
   local snippet_storage filename package_yaml="" package
   [[ $QGA_ENABLED == 1 || -n $ADDITIONAL_PACKAGES || $SSH_PASSWORD_AUTH == 0 ]] || return 0
   if (( DRY_RUN )); then
-    CI_CUSTOM="local:snippets/crynsec-${VMID}-user.yaml"
+    CI_CUSTOM="local:snippets/opslinuxsec-${VMID}-user.yaml"
     return
   fi
   local -a snippets=()
