@@ -72,8 +72,8 @@ Memory defaults to 2048 MB and disk size is 20 GB. VM IDs must be numeric, at le
 
 The installer creates an `ide2` Cloud-Init drive and supports:
 
-- A hostname and default user (`clouduser` by default)
-- Optional password and SSH public key
+- A hostname, default user (`clouduser`), and default password (`clouduser`)
+- Optional replacement password and SSH public key
 - SSH password authentication toggle
 - DHCP or static IPv4 with gateway
 - Optional DNS servers and search domain
