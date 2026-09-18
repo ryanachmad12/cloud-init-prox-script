@@ -285,7 +285,7 @@ configure_cloud_init() {
 
 create_cloud_init_snippet() {
   local snippet_storage filename package_yaml="" package
-  [[ $QGA_ENABLED == 1 || -n $ADDITIONAL_PACKAGES || $SSH_PASSWORD_AUTH == 0 ]] || return
+  [[ $QGA_ENABLED == 1 || -n $ADDITIONAL_PACKAGES || $SSH_PASSWORD_AUTH == 0 ]] || return 0
   if (( DRY_RUN )); then
     CI_CUSTOM="local:snippets/crynsec-${VMID}-user.yaml"
     return
