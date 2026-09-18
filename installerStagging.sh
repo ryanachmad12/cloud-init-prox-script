@@ -365,7 +365,9 @@ create_vm() {
   [[ -n $DNS ]] && run qm set "$VMID" --nameserver "$DNS"
   [[ -n $SEARCH_DOMAIN ]] && run qm set "$VMID" --searchdomain "$SEARCH_DOMAIN"
   [[ -n ${CI_CUSTOM:-} ]] && run qm set "$VMID" --cicustom "user=$CI_CUSTOM"
-  [[ $START_VM == 1 ]] && run qm start "$VMID"
+  if [[ $START_VM == 1 ]]; then
+    run qm start "$VMID"
+  fi
 }
 
 final_summary() {
