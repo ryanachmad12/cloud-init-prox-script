@@ -15,7 +15,7 @@ Script ini cocok dipakai saat ingin menyiapkan template Ubuntu, Debian, Arch Lin
 Unduh script terlebih dahulu:
 
 ```bash
-wget https://raw.githubusercontent.com/ryanachmad12/cloud-init-prox-script/stagging/installer.sh
+wget https://raw.githubusercontent.com/ryanachmad12/cloud-init-prox-script/main/installer.sh
 ```
 
 Lalu jalankan sebagai root:
