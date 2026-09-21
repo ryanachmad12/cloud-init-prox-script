@@ -47,6 +47,10 @@ qm template <VMID>
 - Pastikan VM ID belum digunakan dan storage tujuan memiliki ruang yang cukup agar proses import tidak gagal di tengah jalan.
 - Jika menggunakan **Custom OS**, gunakan link cloud image yang terpercaya dan sesuai dengan arsitektur server Anda.
 
+
+## Additional Note
+- Jika ingin menggunakan Old Version bisa menggunakan Branch `old-version` pada saat di clone repo ini yaww
+
 ## License
 
 Distributed under the [MIT License](LICENSE).
